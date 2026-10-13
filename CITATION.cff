@@ -10,7 +10,7 @@ authors:
     orcid: "https://orcid.org/0009-0008-1594-6065"
 license: MIT
 repository-code: "https://github.com/DanielMoj/liquiditaetsplanung"
-abstract: "Monte-Carlo-Schicht um einen deterministischen Monats-Liquiditätsplan mit rückabgestimmter Wochensicht: Wahrscheinlichkeit der Zahlungsfähigkeit über den Prognosehorizont, Verteilung des Liquiditätstiefpunkts, Quantilbänder des Endbestands und Wahrscheinlichkeit unter der Mindestreserve je Monat, Treiberanalyse (Tornado, Sobol-Indizes), getrennte Modellierung epistemischer und aleatorischer Unsicherheit mit Varianzzerlegung, Szenario- und Maßnahmenvergleich, prüfbare Exporte. Beispiel: fiktive Krankenhaus gGmbH."
+abstract: "Monte-Carlo-Schicht um einen deterministischen Monats-Liquiditätsplan; dazu eine Wochensicht ohne Simulation, auf den Monatslauf rückabgestimmt. Im Einzelnen: Wahrscheinlichkeit der Zahlungsfähigkeit über den Prognosehorizont, Verteilung des Liquiditätstiefpunkts, Quantilbänder des Endbestands und Wahrscheinlichkeit unter der Mindestreserve je Monat, Treiberanalyse (Tornado, Sobol-Indizes), getrennte Modellierung epistemischer und aleatorischer Unsicherheit mit Varianzzerlegung, Szenario- und Maßnahmenvergleich, prüfbare Exporte. Beispiel: fiktive Klinik."
 keywords:
   - "Liquiditätsplanung"
   - "Monte-Carlo-Simulation"
