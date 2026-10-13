@@ -1,5 +1,7 @@
 # Probabilistische Liquiditätsplanung mit Monte-Carlo-Simulation (R/Shiny)
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23352913.svg)](https://doi.org/10.5281/zenodo.23352913)
+
 **English summary.** A Monte Carlo layer around a deterministic monthly liquidity plan, plus a weekly view without simulation, reconciled to the monthly run. Instead of a single cash line, the tool reports the probability of staying solvent over the forecast horizon, the distribution of the cash trough, quantile bands of the month-end balance, the probability of falling below a minimum reserve in each month, and which assumptions drive the trough (tornado, Sobol indices). Epistemic uncertainty (unknown annual assumptions) and aleatoric variability (month-to-month noise estimated from history) are modelled separately, and the variance of the trough is split into both parts. The bundled example is a fictitious hospital. Interface and documentation are in German.
 
 ---
@@ -144,6 +146,9 @@ Die Anwendung erzeugt keine Sicherheit, sie macht vorhandene Unsicherheit ausdr�
 ## Zitieren
 
 Bitte über die DOI der jeweiligen Version zitieren (Zenodo); die Angaben stehen in [`CITATION.cff`](CITATION.cff).
+
+- Version 1.0.0: [10.5281/zenodo.23352914](https://doi.org/10.5281/zenodo.23352914)
+- alle Versionen (Konzept-DOI, führt stets zur neuesten Version): [10.5281/zenodo.23352913](https://doi.org/10.5281/zenodo.23352913)
 
 ## Lizenz
 
