@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "phase": "phase-13-z3-index",
+  "titel": "Export z3 index.xml-Schicht (Beschreibungsstandard Anlage GoBD 2024): handgebauter XML-Katalog mit sha256 je CSV, kein xml2 — Schicht 2/3",
+  "vorlage": null,
+  "funktionen": [
+    {
+      "name": "export_z3_index",
+      "datei": "R/z3.R",
+      "zweck": "Baut die index.xml des GoBD-Z3-Beschreibungsstandards (Anlage GoBD 2024) fuer ein VERZEICHNIS pfad mit CSV-Dateien — Schicht 2/3 des Z3-Exports (Schicht 1/3 export_z3_csv schreibt die CSVs, Schicht 3/3 export_z3 komponiert + exportiert). Reine Funktion, deterministisch (kein Sys.time() im Inhalt, kein RNG, kein Grafikgeraet); ruft KEINE Kernel-Funktion (engine_funktionen leer) — sie nutzt sha256_datei (R/manifest.R) fuer die Datei-Hashes (unantastbarer Bestand, nur aufgerufen, nicht veraendert). VON HAND gebaut (KEIN neues Paket, insb. KEIN xml2 — deps.R bleibt unveraendert): XML-Deklaration, Wurzel <DataSet version='2.0'> ... </DataSet> mit <DataName> und <DataDescription>; je CSV-Datei EIN <Table>-Element im Content-Modell (keine Attribute): <URL><dateiname></URL>, <Name>, <Description>, <Hash>sha256:<64-Hex></Hash> (SHA-256 ueber die rohen CSV-Bytes via sha256_datei, EXTERN nachpruefbar — kein Hash prueft sich selbst: index.xml traegt KEINEN Hash seiner selbst), <Validity>/<Range>/<From>/<To> und <Variable>/<Name>/<Type> je Spalte (Spaltennamen und Spaltenanzahl gelesen aus der jeweiligen CSV-Kopfzeile). SIGNATUR export_z3_index(pfad, dateien): pfad = Verzeichnis der CSVs (existiert, sonst benannter Fehler); dateien = character-Vektor der zu indizierenden CSV-Basisnamen (bestimmt deterministisch, welche Dateien ein <Table>-Element bekommen — KEIN Verzeichnis-Scan, damit der Bestand der indexierten Dateien feststeht); die Funktion schreibt index.xml in pfad und liefert 'index.xml' (den Basisnamen der geschriebenen Datei). FEHLERFAELLE (benannt, Stil wie manifest_validieren in R/manifest.R): pfad kein nicht-leerer String oder nicht existierend -> stop MIT Pfad; dateien kein character-Vektor nicht-leerer Strings, oder eine genannte Datei existiert nicht in pfad -> stop MIT Namen. BESTANDSSCHUTZ: beruehrt weder kernel/ NOCH R/export.R NOCH R/manifest.R NOCH eine test_export_*/test_manifest*-Datei (unantastbarer Bestand) — ruft NUR sha256_datei auf und legt KEIN neues Paket an (digest/jsonlite/openxlsx2 sind seit Phase-9/12 im need-Vektor von tests/deps.R).",
+      "engine_funktionen": []
+    }
+  ],
+  "tests": [
+    {
+      "datei": "tests/test_export_z3_index.R",
+      "art": "testthat",
+      "rot_zuerst": true,
+      "prueft": "Spezifikation der Z3-index.xml-Schicht, rot zuerst (ungeschuetztes source() von R/z3.R am Kopf bricht ab, solange export_z3_index undefiniert ist; zusaetzlich gesourct: R/manifest.R; kein skip, kein succeed, keine Tier-1-Literale, kein MC, keine Engine, keine Fixture-Mappe — nur ein tempdir mit synthetischen CSVs, kleine Laufzeit). (1) RUECKGABE-VERTRAG — export_z3_index(tmpdir, c('t1.csv','t2.csv')) liefert 'index.xml' und schreibt index.xml ins Verzeichnis. (2) BESCHREIBUNGSSTANDARD — index.xml: XML-Deklaration + Wurzel <DataSet ...> ... </DataSet>; je genannter CSV EIN <Table>-Element (keine Attribute) mit <URL><dateiname></URL>; Anzahl <Table> == Anzahl dateien. (3) VON HAND, KEIN xml2 — tests/deps.R bleibt unveraendert (grep 'xml2' in tests/deps.R liefert keinen Treffer). (4) KEIN HASH PRUEFT SICH SELBST — jeder <Hash>sha256:<64-Hex></Hash> identical dem EXTERN nachgerechneten sha256_datei(csv) (NICHT aus index.xml gelesen); die Hash-Menge in index.xml == Menge der CSV-SHA-256; index.xml traegt KEINEN Hash seiner selbst (sha256_datei(index.xml) nicht unter den Hashes). (5) SPALTEN/VARIABLEN — je CSV hat jedes <Table> ein <Variable>/<Name>/<Type> je Spalte der CSV-Kopfzeile (Anzahl == Spaltenzahl der jeweiligen Datei). (6) FEHLERFAELLE — pfad existiert nicht -> Fehler MIT Pfad; dateien mit einer nicht in pfad liegenden CSV -> Fehler MIT Namen; dateien kein character -> Fehler. (7) RNG-WAECHTER — .Random.seed vor/nach export_z3_index unveraendert (kein RNG im GoBD-Pfad). BESTANDSSCHUTZ: beruehrt weder kernel/ NOCH R/export.R NOCH R/manifest.R NOCH eine test_export_*/test_manifest*-Datei."
+    }
+  ],
+  "anker": {
+    "tier1_unveraendert": true,
+    "phasen_anker": [
+      {
+        "kennzahl": "export_z3_index: index.xml Beschreibungsstandard; je CSV genau ein <Table>/<URL>; jeder <Hash> == EXTERN sha256_datei(csv), kein Selbst-Hash; Hash-Menge == CSV-SHA-Menge; von Hand gebaut (kein xml2)",
+        "kriterium": "export_z3_index baut index.xml (XML-Deklaration + Wurzel <DataSet>) mit je CSV GENAU einem <Table>/<URL> (Anzahl <Table> == Anzahl dateien), und jeder <Hash>sha256:<hex></Hash> ist identical dem EXTERN ueber die Datei-Bytes gerechneten sha256_datei(csv) — kein Hash prueft sich selbst (index.xml hat keinen Hash seiner selbst); die Hash-Menge in index.xml == Menge der CSV-SHA-256. Hand-gebaut, KEIN xml2-Paket (deps.R unveraendert). Toleranz 0 (String-/Identitaets-/Existenzpruefungen); der Pruefausdruck versorgt sich selbst (frisches tempdir mit zwei synthetischen CSVs ohne Tier-1-Bezug) — Kontext: R/manifest.R und R/z3.R gesourct (engine-unabhaengig wie die protokoll-Anker; kernel/R/scenario.R hier ungenutzt).",
+        "pruefung": "local({ d <- file.path(tempdir(), \"z3-index-anker\"); unlink(d, recursive = TRUE); dir.create(d, recursive = TRUE); writeLines(c(\"a;b\", \"1;2,5\", \"3;4,5\"), file.path(d, \"t1.csv\"), sep = \"\\r\\n\", useBytes = TRUE); writeLines(c(\"x;y;z\", \"1;2;3\"), file.path(d, \"t2.csv\"), sep = \"\\r\\n\", useBytes = TRUE); csvs <- c(\"t1.csv\", \"t2.csv\"); ix <- tryCatch(export_z3_index(d, csvs), error = function(e) NA_character_); idx_path <- file.path(d, \"index.xml\"); ok <- FALSE; if (identical(ix, \"index.xml\") && file.exists(idx_path)) { idx <- rawToChar(readBin(idx_path, \"raw\", n = file.info(idx_path)$size)); urls <- trimws(regmatches(idx, gregexpr(\"(?<=<URL>)[^<]+\", idx, perl = TRUE))[[1L]]); hashs <- trimws(regmatches(idx, gregexpr(\"(?<=<Hash>)[^<]+\", idx, perl = TRUE))[[1L]]); hh <- sub(\"^sha256:\", \"\", hashs); csv_hash <- vapply(file.path(d, csvs), sha256_datei, character(1L), USE.NAMES = FALSE); n_tab <- lengths(gregexpr(\"<Table>\", idx, fixed = TRUE)); ok <- isTRUE(grepl(\"<?xml\", idx, fixed = TRUE)) && isTRUE(grepl(\"<DataSet\", idx, fixed = TRUE)) && isTRUE(grepl(\"</DataSet>\", idx, fixed = TRUE)) && identical(as.integer(n_tab), length(csvs)) && isTRUE(all(csvs %in% basename(urls))) && length(urls) == length(csvs) && isTRUE(all(hh %in% csv_hash)) && length(hh) == length(csv_hash) && !isTRUE(sha256_datei(idx_path) %in% hh) }; unlink(d, recursive = TRUE); isTRUE(ok) })",
+        "toleranz": 0,
+        "toleranz_bezug": "absolut"
+      }
+    ]
+  },
+  "schirm": {
+    "menue_wert": null,
+    "reiter": [],
+    "kennzahlen": []
+  }
+}

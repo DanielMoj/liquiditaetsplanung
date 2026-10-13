@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "phase": "phase-05-kopula",
+  "titel": "Kopula",
+  "vorlage": "legacy/04_abhaengigkeit.R",
+  "funktionen": [
+    {
+      "name": "phase_kopula",
+      "datei": "R/phase_kopula.R",
+      "zweck": "Rechnet die Treiberspezifikation (build_dists) und die reparierte Matrix R (make_psd, derselbe Engine-Pfad wie phase_korrelation — selbstenthalten bau- und testbar ohne Vorphase) und validiert die Gauss-Copula (draw_epistemic_correlated, Seed 11): die korrelierten Ziehungen reproduzieren die Zielrangkorrelation per veroeffentlichter Formel (6/pi)*asin(R/2) (Spearman) und liegen im PERT-Traeger [min,max] je Treiber; gibt ein Ergebnisobjekt zurueck (R, spec, validierung mit spearman_max_dev/pearson_max_dev/n/seed, diagnostics mit reproduziert/stuetzen_ok) statt in die Konsole zu drucken.",
+      "engine_funktionen": ["build_dists", "make_psd", "draw_epistemic_correlated"]
+    }
+  ],
+  "tests": [
+    {
+      "datei": "tests/test_phase_kop.R",
+      "art": "testthat",
+      "rot_zuerst": true,
+      "prueft": "Gauss-Copula reproduziert die Zielrangkorrelation: empirischer Spearman der Ziehungen trifft die veroeffentlichte Formel (6/pi)*asin(R/2) (set.seed 11, unabhaengig von draw_epistemic_correlated nachgerechnet — faengt eine Mutation im Cholesky-/pnorm-Teil, die Randraender allein blieben davon unberuehrt), PERT-Stuetzen-Vertrag: jeder korrelierte Zug liegt in [min,max] je Treiber (die Copula respektiert die Raender), Determinismus unter set.seed 11, Fehlerfall fehlendes Blatt 07_Korrelation -> sauberer benannter Fehler, Zurueckweisung von Nicht-Szenarien."
+    }
+  ],
+  "anker": {
+    "tier1_unveraendert": true,
+    "phasen_anker": [
+      {
+        "kennzahl": "Spearman-Reproduktion",
+        "kriterium": "Gauss-Copula-Vertrag: der empirische Spearman der korrelierten Ziehungen trifft die veroeffentlichte Formel (6/pi)*asin(R/2) — unabhaengig von draw_epistemic_correlated nachgerechnet, faengt eine Mutation im Cholesky-/pnorm-Teil (die Randraender allein blieben davon unberuehrt).",
+        "pruefung": "local({ set.seed(11); X <- draw_epistemic_correlated(out$spec, out$R, 200000); es <- cor(X, method = \"spearman\"); ex <- (6/pi) * asin(out$R/2); isTRUE(max(abs(es - ex)) <= 0.03) })",
+        "toleranz": 0.03,
+        "toleranz_bezug": "absolut"
+      },
+      {
+        "kennzahl": "X in [min,max]",
+        "kriterium": "PERT-Stuetzen-Vertrag der Gauss-Copula: jeder korrelierte Zug liegt im deklarierten Traeger [min, max] je Treiber — die Copula respektiert die Raender.",
+        "pruefung": "local({ set.seed(11); X <- draw_epistemic_correlated(out$spec, out$R, 5000); ok <- TRUE; for (j in names(out$spec)) { s <- out$spec[[j]]; ok <- ok && all(X[, j] >= s$min - 1e-9 & X[, j] <= s$max + 1e-9) }; isTRUE(ok) })",
+        "toleranz": 1e-09,
+        "toleranz_bezug": "absolut"
+      }
+    ]
+  },
+  "schirm": {
+    "menue_wert": "kopula",
+    "reiter": [
+      {
+        "titel": "Copula-Validierung",
+        "outputs": [
+          { "output_id": "kop_diag", "typ": "uiOutput", "inhalt": "Diagnosezeile: Badge Gauss-Copula reproduziert Korrelation, max. Spearman-Abweichung vs. Formel, max. Pearson-Abweichung (copulabedingte Daempfung bei schiefen Raendern), n Ziehungen, Seed 11, PERT-Stuetzen-Vertrag (jeder Zug in [min,max]); ehrlicher Hinweis: bei engen Treiberbaendern hat das Korrelationsblatt kaum Effekt auf die Tiefpunktverteilung." }
+        ]
+      }
+    ],
+    "kennzahlen": [
+      { "dom_id": "kop-reproduziert", "kennzahl": "Status Gauss-Copula reproduziert Korrelation", "quelle": "diagnostics$reproduziert", "format": "badge" },
+      { "dom_id": "kop-spearman-dev", "kennzahl": "Max. Spearman-Abweichung vs. Formel", "quelle": "validierung$spearman_max_dev", "format": "text" }
+    ]
+  }
+}

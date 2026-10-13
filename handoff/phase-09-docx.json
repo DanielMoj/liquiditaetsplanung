@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "phase": "phase-09-docx",
+  "titel": "Export docx",
+  "vorlage": null,
+  "funktionen": [
+    {
+      "name": "export_docx",
+      "datei": "R/export.R",
+      "zweck": "Schreibt eine BENANNTE Liste von Phasen-Ergebnisobjekten ueber officer in genau eine docx-Datei (Bericht) und gibt list(pfad = <geschriebener Pfad>, abschnitte = <character der Abschnittsnamen in Schreibreihenfolge>) zurueck — keine Simulation, kein Grafikgeraet, deterministisch (kein Zeitstempel im INHALT; docx-Metadaten wie core.xml-Datumsfelder duerfen abweichen, der ueber officer::docx_summary gelesene Inhalt nicht). Je Eintrag ein ABSCHNITT in EINGABEREIHENFOLGE: eine Ueberschrift im Stil 'heading 1', deren Text EXAKT der Vertragsname ist (dieselben Namen wie die xlsx-Blattnamen: forecast, forecast_kpis, sim_monate, sim_deckung, varianzzerlegung, vergleich), gefolgt von GENAU EINER Tabelle. Die Tabellenformen kommen aus dem GEMEINSAMEN Block-Bauer export_bloecke_bauen (eine Quelle, keine Drift zu xlsx): forecast expandiert zu ZWEI Abschnitten (Blattstruktur-Entscheidung wie phase-09-xlsx: 'forecast' = cash-Matrix als data.frame mit Zeilennamen als erster Spalte 'Position', danach M1..MH; 'forecast_kpis' = kpis als Key/Wert-Paare kennzahl/wert in Vertragsreihenfolge trough, trough_month, maxKK, months_below, result, end); sim_monate -> table unveraendert; vergleich -> tabelle unveraendert; sim_deckung -> Key/Wert in Vertragsreihenfolge trough_median, trough_p05, trough_p95, P_breach, P_solvent, P_breach_pct, P_solvent_pct, insO_erfuellt, kk_limit, seed, S (seed VOR S; insO_erfuellt als 0/1 via as.numeric); varianzzerlegung -> Key/Wert var_gesamt, var_epi, var_ale, var_inter, sd_gesamt, sd_epi, sd_ale, anteil_epi, anteil_ale, anteil_inter, S, seed (S VOR seed — die Asymmetrie zu sim_deckung ist Teil des Vertrags). ZELL-TEXT-REGEL (gepinnte Entscheidung): docx-Tabellenzellen sind Text; export_docx konvertiert JEDE Spalte selbst per as.character (Zahlen in der R-eigenen 15-signifikante-Stellen-Darstellung, logicals als TRUE/FALSE, die Key/Wert-wert-Spalte damit als Text der homogen numerischen Werte, insO als '1'/'0') — das officer-eigene format() beim body_add_table wuerde runden/auffuellen ('1.50') und wird bewusst umgangen; die Ruecklesung via as.numeric ist damit fuer Vertragszahlen exakt bzw. besser als 1e-12 relativ. abschnitte ist identical zu export_xlsx(ergebnisse, ...)$blaetter derselben Eingabe (Symmetrie ueber den gemeinsamen Bauer). Fehler (geworfen vom Bauer): unbekannter Listenname (Fehlertext enthaelt den Namen), leere Liste, unbenannte Liste. KEIN Legacy-Vorbild (vorlage: null wie phase-08/phase-09-xlsx); Zielort R/export.R laut ARCHITECTURE.md. App-Seite (Runde I): downloadButton export_docx_btn in einem Container mit fester DOM-ID export-docx im BESTEHENDEN Sidebar-Bereich 'Datei -> Export' (unter dem xlsx-Button); der downloadHandler nutzt den BESTEHENDEN Sammel-Reactive export_ergebnisse (export_ergebnisse_sammeln, unveraendert), filename liquiditaetsplanung_export.docx, bei leerer Sammlung der validate-Hinweis 'Erst rechnen, dann exportieren.'. Schirm-Darstellung: SCHIRM-LOS von Anfang an (menue_wert null, leeres reiter-Array; Praezedenz phase-09-xlsx nach Schema 5009736) — kein Eintrag im PHASEN-Vektor, kein nav_panel; pruefbares Element ist allein die kennzahlen-DOM-ID export-docx, der Container des downloadButton export_docx_btn.",
+      "engine_funktionen": []
+    },
+    {
+      "name": "export_bloecke_bauen",
+      "datei": "R/export.R",
+      "zweck": "HERAUSGEZOGENER gemeinsamer Block-Bauer aus export_xlsx: Validierung (benannte, nicht-leere Liste; nur bekannte Vertragsnamen forecast/sim_monate/sim_deckung/varianzzerlegung/vergleich, unbekannte Namen im Fehlertext) plus Aufbau der benannten Block-Liste (data.frames) in Eingabereihenfolge inkl. forecast-Expansion zu forecast + forecast_kpis und der Key/Wert-Vertragsreihenfolgen (deckung: seed VOR S; varianz: S VOR seed; insO_erfuellt 0/1 via as.numeric). Von export_xlsx UND export_docx gerufen — EINE Quelle fuer die Vertragskonstanten statt zwei driftfaehiger Kopien. Medienneutral: liefert native Typen (Zahlen/Strings/logicals); die Medienschicht entscheidet (xlsx schreibt nativ ueber openxlsx2, docx konvertiert per as.character-Zellregel).",
+      "engine_funktionen": []
+    },
+    {
+      "name": "export_xlsx",
+      "datei": "R/export.R",
+      "zweck": "BESTAND, nur intern umgestellt: baut seine Blaetter jetzt ueber export_bloecke_bauen und schreibt sie unveraendert ueber openxlsx2; Signatur, Rueckgabe list(pfad, blaetter), Blattformen und Fehlerverhalten identisch — die committete Spezifikation tests/test_export_xlsx.R bleibt unveraendert der Beweis.",
+      "engine_funktionen": []
+    }
+  ],
+  "tests": [
+    {
+      "datei": "tests/test_export_docx.R",
+      "art": "testthat",
+      "rot_zuerst": true,
+      "prueft": "Ruecklese-Treue und Vertrag des docx-Exports (rot zuerst: export_docx existiert noch nicht — jeder Test faellt am fehlenden Symbol; R/export.R selbst laesst sich sourcen): (1) Rueckgabe-Vertrag — pfad existiert und ist der Zielpfad, abschnitte identical zur Eingabereihenfolge (forecast zaehlt als zwei Abschnitte forecast + forecast_kpis; Eingabeliste bewusst weder alphabetisch noch in Phasenfolge) und identical zur heading-1-Ueberschriftenfolge des Dokuments (docx_summary nach doc_index); (2) Ruecklese-Orakel an fuenf frischen, paarweise unverwechselbaren synthetischen Stubs (keine Tier-1-Werte, keine Zahlen-Wiederverwendung aus anderen Tests; Erwartungen als eigene, vom Stub unabhaengig gehaltene Literale; Lesen ueber docx_summary, Zellen je table_index nach row_id/cell_id rekonstruiert): Kopfzeile = Spaltennamen (is_header), Zahlen via as.numeric der Zell-Texte mit 1e-12, Strings identical; forecast-Abschnitt == cash-Matrix (Position + M1..M3), forecast_kpis/sim_deckung/varianzzerlegung als Key/Wert-Tabellen mit exakt gepinnten Key-Reihenfolgen (deckung: seed VOR S; varianz: S VOR seed), insO-Zelle EXAKT der Text '1' (Zell-Text-Regel as.character nach as.numeric), vergleich Zelle fuer Zelle inkl. insO-TRUE/FALSE-Rundreise via as.logical; Koeder-Felder (guv, T_full/T_epi/T_ale/Theta, phase/scenario) landen in KEINEM Abschnitt; (3) Kreuz-Check deckung <-> varianz — weder Keys noch irgendein Wert des jeweils anderen Stubs (killt Abschnitts-/Objektvertauschung); (4) Ordnung — jede Ueberschrift steht per doc_index VOR ihrer Tabelle und VOR der naechsten Ueberschrift (Ueberschrift-Tabelle-Paarung ist keine Zufallsfolge); (5) Symmetrie — abschnitte identical zu export_xlsx(...)$blaetter DERSELBEN Eingabe (gemeinsamer Block-Bauer sichtbar gemacht); (6) Determinismus — zwei Exporte derselben Eingabe liefern identical zurueckgelesene docx_summary-Inhalte (Datei-Bytes/Metadaten duerfen abweichen); (7) Fixture-Naht — ein memoisierter echter phase_sim_monate-Lauf (paths = 12, Seed 2026), Export + Ruecklesen, Monat identical und P05/P50/P95/P_unter via as.numeric mit Toleranz 1e-9 (die as.character-Zellregel verbiegt keine echte Zahl); (8) Fehlerfaelle — unbekannter Listenname mit dem Namen im Fehlertext (auch neben gueltigen Namen), leere Liste, unbenannte Liste."
+    },
+    {
+      "datei": "tests/test_export_docx_ui.R",
+      "art": "testthat",
+      "rot_zuerst": true,
+      "prueft": "Verdrahtungs- und Bindungs-Orakel DIREKT in Runde T (Lehre aus phase-09-xlsx M4: die rv-zu-Parameter-Naht lag dort bis zum Mutgate-Rerun ausserhalb jedes Tests): app/app.R in-Process gesourct, shiny::testServer; die vier Quell-rvs (rv/sim_rv/var_rv/vergleich_rv) mit paarweise unverwechselbaren Stub-Werteblocken belegt (varianz-Stub traegt den VOLLEN 12-Key-Vertrag, weil der Export ihn projiziert), rv$kk_limit mit eigenem, in keinem Stub-Zahlenblock vorkommendem Wert; Regime-Waechter als harte Fails (sim-Stub traegt trough-Vektor, kein anderer Stub traegt top-level trough, P_breach extern nicht degeneriert). ABRUF output$export_docx_btn liefert den vom downloadHandler geschriebenen Pfad (basename EXAKT liquiditaetsplanung_export.docx); Ruecklesung via docx_summary: Abschnittsfolge identical c(forecast, forecast_kpis, sim_monate, sim_deckung, varianzzerlegung, vergleich) (Sammel-Reihenfolge von export_ergebnisse_sammeln, forecast expandiert), sim_deckung-Zellen EXTERN aus den sim-Stub-Literalen gerechnet (P_breach = mean(trough < -kk), trough_median, kk_limit = rv-Schwelle — eine falsche rv-Bindung stirbt an der Projektion oder der Wertabweichung), je Quelle ein blockeigener Zellwert als Bindungsbeweis (forecast-M1-Spalte, varianz var_gesamt, vergleich-Szenarionamen, sim-P_unter-Spalte); NULL-Teilprobe im selben testServer (sim_rv$out <- NULL -> GENAU die sim_-Abschnitte fehlen, uebrige Bindungen unveraendert); Leerpfad: alle vier Quellen NULL -> Abruf wirft den validate-Fehler (Klasse shiny.silent.error, 'Erst rechnen, dann exportieren.'). Rot zuerst: der Output export_docx_btn existiert im Server noch nicht — der Abruf faellt als Fehler."
+    }
+  ],
+  "anker": {
+    "tier1_unveraendert": true,
+    "phasen_anker": [
+      {
+        "kennzahl": "abschnitte",
+        "kriterium": "Ruecklese-Treue des docx-Exports: die heading-1-Ueberschriftenfolge des geschriebenen Dokuments ist identical zu den Eingabenamen in Eingabereihenfolge (Rueckgabe abschnitte == Ueberschriftenfolge), und die zurueckgelesenen Tabellenzellen tragen exakt die Werte des Ergebnisobjekts — Kopfzeile identical zu den Spaltennamen, Strings identical, Zahlen via as.numeric der Zell-Texte mit Toleranz 1e-12 (as.character-Zellregel; kein Formatieren, kein Umsortieren, kein Zeitstempel im Inhalt).",
+        "pruefung": "local({ st <- list(sim_monate = list(table = data.frame(Monat = c(\"M1\", \"M2\"), P05 = c(-3.5, -2.25), P50 = c(0.75, 1.25), P95 = c(4.25, 5.75), P_unter = c(0.2, 0.05), stringsAsFactors = FALSE))); tf <- tempfile(fileext = \".docx\"); r <- export_docx(st, tf); s <- officer::docx_summary(officer::read_docx(tf)); s <- s[order(s$doc_index), ]; h <- s[s$content_type == \"paragraph\" & s$style_name == \"heading 1\", \"text\"]; z <- s[s$content_type == \"table cell\", ]; z <- z[order(z$row_id, z$cell_id), ]; kopf <- z$text[z$is_header]; werte <- matrix(z$text[!z$is_header], ncol = 5, byrow = TRUE); file.exists(r$pfad) && identical(r$pfad, tf) && identical(r$abschnitte, names(st)) && identical(h, names(st)) && identical(kopf, names(st$sim_monate$table)) && identical(werte[, 1], st$sim_monate$table$Monat) && isTRUE(all.equal(as.numeric(werte[, 2]), st$sim_monate$table$P05, tolerance = 1e-12)) && isTRUE(all.equal(as.numeric(werte[, 3]), st$sim_monate$table$P50, tolerance = 1e-12)) && isTRUE(all.equal(as.numeric(werte[, 4]), st$sim_monate$table$P95, tolerance = 1e-12)) && isTRUE(all.equal(as.numeric(werte[, 5]), st$sim_monate$table$P_unter, tolerance = 1e-12)) })",
+        "toleranz": 1e-12,
+        "toleranz_bezug": "absolut"
+      }
+    ]
+  },
+  "schirm": {
+    "menue_wert": null,
+    "reiter": [],
+    "kennzahlen": [
+      {
+        "dom_id": "export-docx",
+        "kennzahl": "Download-Element 'Datei -> Export' (docx) — Container des downloadButton export_docx_btn; pruefbares DOM-Element, kein Zahlwert",
+        "quelle": "downloadHandler -> export_docx(ergebnisse, pfad)$pfad",
+        "format": "text"
+      }
+    ]
+  }
+}

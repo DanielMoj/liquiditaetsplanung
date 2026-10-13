@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "phase": "phase-06-deckung",
+  "titel": "Tiefpunkt & Deckung",
+  "vorlage": "legacy/05_simulation.R",
+  "funktionen": [
+    {
+      "name": "phase_sim_deckung",
+      "datei": "R/phase_sim_deckung.R",
+      "zweck": "Projiziert das Simulationsergebnis phase_simulation(sc) auf den Deckungs-/Solvenz-Verdict und gibt ein Ergebnisobjekt zurueck statt in die Konsole zu drucken: trough_median, trough_p05, trough_p95 (Tiefpunkt-Verteilung), P_breach (P(KK-Linie reisst) = Anteil Pfade mit trough < -kk_limit), P_solvent (P(zahlungsfaehig ueber den Horizont) = 1 - P_breach), P_breach_pct, P_solvent_pct (100 x Anteil), insO_erfuellt (§§ 18/19 InsO-Verdict: P_solvent > 0.5), kk_limit, seed (Szenario-Schluessel) und S (Pfadanzahl). Ruft den DAG-cached Wrapper phase_simulation(sc) auf und uebernimmt dessen trough/metrics — keine zweite Monte-Carlo, keine Kernel-Aenderung. Das InsO-Urteil ist eine reine Schwellenprojection (kein hartcodiertes Ergebnis).",
+      "engine_funktionen": []
+    }
+  ],
+  "tests": [
+    {
+      "datei": "tests/test_phase_sim_deckung.R",
+      "art": "testthat",
+      "rot_zuerst": true,
+      "prueft": "Treue des Deckungs-Verdicts: trough_median/p05/p95 == aus out$trough (median/quantile), P_breach == mean(out$trough < -kk_limit) mit Limit aus dem Modell (sc$mdl$kk_limit), P_solvent == 1 - P_breach, insO_erfuellt == (P_solvent > 0.5) §§ 18/19 InsO inkl. Rand bei exakt 0.5 (strikt >), *_pct == 100 * Anteil, Struktur (alle Kennzahlen skalar/numerisch, P in [0,1]), keine zweite MC (Ergebnis ist reine Projektion von phase_simulation), Zurueckweisung von Nicht-Szenarien."
+    }
+  ],
+  "anker": {
+    "tier1_unveraendert": true,
+    "phasen_anker": [
+      {
+        "kennzahl": "P_solvent / P_breach / insO_erfuellt",
+        "kriterium": "Selbstkonsistenz des Solvenz-Verdicts: P_solvent == 1 - P_breach, die Prozent-Kennzahlen == 100 * Anteil, und das InsO-Urteil (§§ 18/19) folgt exakt der Schwelle P_solvent > 0.5 (strikt, kein hartcodiertes Urteil, faengt einen falschen <= oder hartcodierten Status).",
+        "pruefung": "isTRUE(all.equal(out$P_solvent, 1 - out$P_breach, tolerance = 1e-12)) && isTRUE(all.equal(out$P_breach_pct, 100 * out$P_breach, tolerance = 1e-12)) && isTRUE(all.equal(out$P_solvent_pct, 100 * out$P_solvent, tolerance = 1e-12)) && identical(out$insO_erfuellt, out$P_solvent > 0.5)",
+        "toleranz": 1e-12,
+        "toleranz_bezug": "absolut"
+      }
+    ]
+  },
+  "schirm": {
+    "menue_wert": "sim_deckung",
+    "reiter": [
+      {
+        "titel": "Tiefpunkt & Deckung",
+        "outputs": [
+          { "output_id": "deckung_recon", "typ": "uiOutput", "inhalt": "Tiefpunkt Median/P05/P95, P(KK-Linie reisst) und P(zahlungsfaehig ueber den Horizont) mit Hinweis auf §§ 18/19 InsO (> 50 Prozent gefordert) und dem KK-Limit, Seed und Pfadanzahl; Pfad der gesicherten endbestand.rds (Eingabe Phase 7)." }
+        ]
+      }
+    ],
+    "kennzahlen": [
+      { "dom_id": "deckung-trough-median", "kennzahl": "Tiefpunkt Median (EUR)", "quelle": "trough_median", "format": "fmt" },
+      { "dom_id": "deckung-trough-p05", "kennzahl": "Tiefpunkt P05 (EUR)", "quelle": "trough_p05", "format": "fmt" },
+      { "dom_id": "deckung-trough-p95", "kennzahl": "Tiefpunkt P95 (EUR)", "quelle": "trough_p95", "format": "fmt" },
+      { "dom_id": "deckung-p-breach", "kennzahl": "P(KK-Linie reisst) [%]", "quelle": "P_breach_pct", "format": "dezimal1" },
+      { "dom_id": "deckung-p-solvent", "kennzahl": "P(zahlungsfaehig ueber Horizont) [%]", "quelle": "P_solvent_pct", "format": "dezimal1" }
+    ]
+  }
+}

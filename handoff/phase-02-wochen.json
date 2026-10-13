@@ -1,0 +1,102 @@
+{
+  "schema_version": 1,
+  "phase": "phase-02-wochen",
+  "titel": "Wochen",
+  "vorlage": "legacy/01b_wochen.R",
+  "funktionen": [
+    {
+      "name": "phase_wochen",
+      "datei": "R/phase_wochen.R",
+      "zweck": "Rechnet Monats- und Wochensicht ueber die eingefrorene Engine und gibt ein Ergebnisobjekt zurueck (kpis, cash-Wochenmatrix, Wochentabelle, plot_path, monatssicht, rueckabstimmung, kk_zins, diagnostics) statt in die Konsole zu drucken.",
+      "engine_funktionen": ["run_model", "run_model_weekly"]
+    },
+    {
+      "name": ".plot_wochen",
+      "datei": "R/phase_wochen.R",
+      "zweck": "Zeichnet den Endbestand-Verlauf je Woche als PNG in den Szenario-Workspace; gibt den Pfad zurueck oder NA, wenn kein Grafikgeraet verfuegbar ist (sauberer Headless-Fallback).",
+      "engine_funktionen": []
+    }
+  ],
+  "tests": [
+    {
+      "datei": "tests/test_phase_wochen.R",
+      "art": "testthat",
+      "rot_zuerst": true,
+      "prueft": "Treue (Wrapper reicht Engine-Wochenwerte unveraendert durch: trough, trough_week, n_weeks, Endbestand- und NettoCashflow-Vektor), Rueckabstimmung Monat=Woche auch unter assume_overrides, Struktur von Matrix und Tabelle, KK-Zins-Vertragsformel plus Rekursions-Identitaet der Wochenzeilen, KK-Zins Monat und Woche beide ausgewiesen ohne feste Richtungsbehauptung (payday-abhaengig), Richtungstest Mengen -10 Prozent senkt den Tiefpunkt, Plot-Fallback ohne Grafikgeraet, Zurueckweisung von Nicht-Szenarien."
+    }
+  ],
+  "anker": {
+    "tier1_unveraendert": true,
+    "phasen_anker": [
+      {
+        "kennzahl": "kpis$trough",
+        "kriterium": "Treue: der Wochen-Tiefpunkt des Wrappers ist identisch mit dem direkten Engine-Lauf — die UI verbiegt die Engine nicht.",
+        "pruefung": "out$kpis$trough == run_model_weekly(load_model(WB))$kpis$trough",
+        "toleranz": 0,
+        "toleranz_bezug": "absolut"
+      },
+      {
+        "kennzahl": "cash[\"Endbestand\", ]",
+        "kriterium": "Treue: der komplette Endbestand-Vektor entspricht der Engine-Wochenmatrix.",
+        "pruefung": "isTRUE(all.equal(unname(out$cash[\"Endbestand\", ]), unname(run_model_weekly(load_model(WB))$cash[\"Endbestand\", ])))",
+        "toleranz": 0,
+        "toleranz_bezug": "absolut"
+      },
+      {
+        "kennzahl": "rueckabstimmung$diff",
+        "kriterium": "Engine-Vertrag Kalendarisierung: Summe NettoCashflow Wochensicht = Summe Monatssicht.",
+        "pruefung": "abs(out$rueckabstimmung$diff) <= 1e-06 * max(1, abs(out$rueckabstimmung$netcf_monat))",
+        "toleranz": 1e-06,
+        "toleranz_bezug": "relativ"
+      },
+      {
+        "kennzahl": "cash[\"KK_Zins\", ]",
+        "kriterium": "KK-Zins Woche folgt der Vertragsformel max(0, -Vorwochensaldo) * kk_zins * Tage/365, und die Wochenzeilen erfuellen Endbestand = Vorwochensaldo + NettoCashflow - KK_Zins.",
+        "pruefung": "local({ mdl <- load_model(WB); wk <- run_model_weekly(mdl); end <- unname(wk$cash[\"Endbestand\", ]); prev <- c(mdl$open_cash, end[-length(end)]); wk_days <- as.integer(wk$wk_end - wk$wk_start) + 1L; isTRUE(all.equal(unname(wk$cash[\"KK_Zins\", ]), pmax(0, -prev) * mdl$kk_zins * wk_days / 365, tolerance = 1e-09)) && isTRUE(all.equal(end, prev + unname(wk$cash[\"NettoCashflow\", ]) - unname(wk$cash[\"KK_Zins\", ]), tolerance = 1e-09)) })",
+        "toleranz": 1e-09,
+        "toleranz_bezug": "absolut"
+      }
+    ]
+  },
+  "schirm": {
+    "menue_wert": "wochen",
+    "reiter": [
+      {
+        "titel": "Endbestand-Verlauf",
+        "outputs": [
+          { "output_id": "wochen_diag", "typ": "uiOutput", "inhalt": "Diagnosezeile: Tiefpunkt (Woche), Vergleich Monatssicht, Badges Rueckabstimmung und KK-Limit, Wochen unter Mindestreserve." },
+          { "output_id": "wochen_plot", "typ": "imageOutput", "inhalt": "PNG Endbestand je Woche mit Mindestreserve-, KK-Limit- und Tiefpunkt-Markierung." }
+        ]
+      },
+      {
+        "titel": "Wochen-Tabelle",
+        "outputs": [
+          { "output_id": "wochen_tbl", "typ": "tableOutput", "inhalt": "Woche, ab-Datum, NettoCashflow, Endbestand, KK, unter-Reserve-Flag; Zahlen ueber fmt()." }
+        ]
+      },
+      {
+        "titel": "Rueckabstimmung Monat = Woche",
+        "outputs": [
+          { "output_id": "wochen_recon", "typ": "uiOutput", "inhalt": "Summen NettoCashflow Monat/Woche, Differenz mit Status, KK-Zins Monat vs. Woche mit Faktor; Richtung payday-abhaengig, keine feste Richtungsbehauptung." }
+        ]
+      }
+    ],
+    "kennzahlen": [
+      { "dom_id": "wochen-tiefpunkt", "kennzahl": "Liquiditaets-Tiefpunkt Wochensicht (EUR)", "quelle": "kpis$trough", "format": "fmt" },
+      { "dom_id": "wochen-tiefpunkt-woche", "kennzahl": "Tiefpunkt-Woche (Index)", "quelle": "kpis$trough_week", "format": "ganzzahl" },
+      { "dom_id": "wochen-monatssicht-tiefpunkt", "kennzahl": "Tiefpunkt Monatssicht zum Vergleich (EUR)", "quelle": "monatssicht$trough", "format": "fmt" },
+      { "dom_id": "wochen-monatssicht-monat", "kennzahl": "Tiefpunkt-Monat der Monatssicht", "quelle": "monatssicht$trough_month", "format": "ganzzahl" },
+      { "dom_id": "wochen-badge-rueckabstimmung", "kennzahl": "Status Rueckabstimmung Monat=Woche", "quelle": "diagnostics$rueckabstimmung_ok", "format": "badge" },
+      { "dom_id": "wochen-badge-kk-limit", "kennzahl": "Status KK innerhalb Limit", "quelle": "diagnostics$kk_innerhalb_limit", "format": "badge" },
+      { "dom_id": "wochen-unter-reserve", "kennzahl": "Anzahl Wochen unter Mindestreserve", "quelle": "diagnostics$wochen_unter_reserve", "format": "ganzzahl" },
+      { "dom_id": "wochen-anzahl", "kennzahl": "Anzahl Wochen im Horizont", "quelle": "n_weeks", "format": "ganzzahl" },
+      { "dom_id": "wochen-recon-netcf-monat", "kennzahl": "Summe NettoCashflow Monatssicht (EUR)", "quelle": "rueckabstimmung$netcf_monat", "format": "fmt" },
+      { "dom_id": "wochen-recon-netcf-woche", "kennzahl": "Summe NettoCashflow Wochensicht (EUR)", "quelle": "rueckabstimmung$netcf_woche", "format": "fmt" },
+      { "dom_id": "wochen-recon-differenz", "kennzahl": "Differenz der Summen (EUR)", "quelle": "rueckabstimmung$diff", "format": "fmt" },
+      { "dom_id": "wochen-recon-status", "kennzahl": "Abstimmungs-Status (abgestimmt/DRIFT)", "quelle": "rueckabstimmung$ok", "format": "text" },
+      { "dom_id": "wochen-recon-kkzins-monat", "kennzahl": "KK-Zins Summe Monatssicht (EUR)", "quelle": "kk_zins$monat", "format": "fmt" },
+      { "dom_id": "wochen-recon-kkzins-woche", "kennzahl": "KK-Zins Summe Wochensicht (EUR)", "quelle": "kk_zins$woche", "format": "fmt" },
+      { "dom_id": "wochen-recon-kkzins-faktor", "kennzahl": "Faktor KK-Zins Woche/Monat (nur wenn kk_zins$monat > 1)", "quelle": "kk_zins$faktor", "format": "dezimal1", "bedingt": true }
+    ]
+  }
+}

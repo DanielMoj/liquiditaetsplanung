@@ -1,0 +1,22 @@
+cff-version: 1.2.0
+message: "Bitte zitieren Sie diese Software über die Angaben in dieser Datei."
+type: software
+title: "Probabilistische Liquiditätsplanung mit Monte-Carlo-Simulation (R/Shiny)"
+version: 1.0.0
+date-released: "2026-10-14"
+authors:
+  - family-names: Moj
+    given-names: Daniel Andreas
+    orcid: "https://orcid.org/0009-0008-1594-6065"
+license: MIT
+repository-code: "https://github.com/DanielMoj/liquiditaetsplanung"
+abstract: "Monte-Carlo-Schicht um einen deterministischen Monats-Liquiditätsplan mit rückabgestimmter Wochensicht: Wahrscheinlichkeit der Zahlungsfähigkeit über den Prognosehorizont, Verteilung des Liquiditätstiefpunkts, Quantilbänder des Endbestands und Wahrscheinlichkeit unter der Mindestreserve je Monat, Treiberanalyse (Tornado, Sobol-Indizes), getrennte Modellierung epistemischer und aleatorischer Unsicherheit mit Varianzzerlegung, Szenario- und Maßnahmenvergleich, prüfbare Exporte. Beispiel: fiktive Krankenhaus gGmbH."
+keywords:
+  - "Liquiditätsplanung"
+  - "Monte-Carlo-Simulation"
+  - "Fortbestehensprognose"
+  - "Entscheidungen unter Unsicherheit"
+  - "Sobol"
+  - "PERT"
+  - "Shiny"
+  - "R"

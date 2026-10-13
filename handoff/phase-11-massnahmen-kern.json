@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "phase": "phase-11-massnahmen-kern",
+  "titel": "Massnahmen (Kern): Katalog, Paket-Quantifizierung, Overlay",
+  "vorlage": null,
+  "funktionen": [
+    {
+      "name": "massnahmen_katalog",
+      "datei": "R/massnahmen.R",
+      "zweck": "Startkatalog der Sanierungs-Massnahmen als DATEN (data.frame, keine Logik): >= 12 Standard-Massnahmen der Krankenhaus-Sanierungspraxis in den drei Kategorien leistungswirtschaftlich / finanzwirtschaftlich / liquiditaetswirksam; je Zeile id (snake_case, eindeutig), name, kategorie, typ ('treiber' oder 'delta'), treiber (bei typ treiber einer aus menge/preis/tarif/energie/material/pflegebudget/inflation, sonst NA), hinweis (Ein-Satz-Doku); mindestens 4 treiber- und mindestens 6 delta-Massnahmen. Pflicht-Beispiele: preiserhoehung (treiber preis), mengenprogramm (menge), tarifmoderation (tarif), energieeinsparung (energie) sowie gesellschafterdarlehen, investitionsstopp, sale_and_lease_back, stundung_verbindlichkeiten, forderungsverkauf, kurzarbeit (delta). KEIN Legacy-Skript (vorlage: null ist die schema-konforme Darstellung, da das vorlage-Pattern nur legacy/-Pfade zulaesst) — fachliche Grundlage ist die Paritaetsluecke zu einem kommerziellen Referenzwerkzeug (dessen Massnahmen-/Sanierungsmodul die App bisher nicht abdeckt); das Wirkmodell ist ZWEIPFADIG: treiber-Massnahmen wirken als assume_overrides-Deltas auf die Engine-Treiber (Mechanik scenario_from_workbook in R/scenario.R), delta-Massnahmen als direkte monatliche Zahlungsreihen-Deltas. SCHIRM-DARSTELLUNG: die Einheit ist SCHIRM-LOS nach dem Praezedenzfall phase-10-generator (menue_wert null, reiter [], kennzahlen [] — schema-valide, da kennzahlen kein minItems traegt und die Reiter-Pflicht nur bei gesetztem menue_wert greift); konstruktionsbedingt KEIN DOM-Element, der Massnahmen-Schirm (Schalterliste, Delta-Vorschau, Paket-Vergleich ueber compare_scenarios) folgt in phase-11-massnahmen-ui.",
+      "engine_funktionen": []
+    },
+    {
+      "name": "quantifiziere_paket",
+      "datei": "R/massnahmen.R",
+      "zweck": "Reine Quantifizierung eines Massnahmen-Pakets OHNE Simulation: paket = Liste von Eintraegen list(id, params), dieselbe id darf mehrfach vorkommen; params je Typ — treiber: list(delta = numerisch, z. B. +0.02); delta: list(betrag, start_m (1..H), dauer (>= 1), verlauf = 'einmalig' | 'linear'). Rueckgabe list(treiber_overrides = benannte Liste der SUMMIERTEN Treiber-Deltas (mehrere Massnahmen auf denselben Treiber addieren sich, auch bei wiederholter id; direkt anschlussfaehig an assume_overrides von scenario_from_workbook), delta_monat = UNBENANNTER numerischer Vektor Laenge H (einmalig: voller betrag exakt in start_m; linear: betrag/dauer in start_m..min(start_m + dauer - 1, H) — ueber H hinauslaufende Raten werden ABGESCHNITTEN und NICHT umverteilt, dokumentierter Grenzfall-Vertrag), doku = data.frame je Massnahme mit id, typ, wirkung_text in Paketreihenfolge). Eingabevertraege: unbekannte id -> Fehler MIT der id im Fehlertext; start_m ausserhalb 1..H -> Fehler; betrag 0 erlaubt; leeres paket -> neutrale Rueckgabe (leere overrides, Nullvektor Laenge H, doku mit 0 Zeilen).",
+      "engine_funktionen": []
+    },
+    {
+      "name": "massnahmen_overlay",
+      "datei": "R/massnahmen.R",
+      "zweck": "MC-FREIE Projektion eines quantifizierten Pakets auf ein FERTIGES phase_simulation-Ergebnis out — KEINE Simulation, kein RNG, deterministisch; Kopfkommentar-Pflicht: keine KK-Zins-Rueckkopplung der Deltas (Naeherung erster Ordnung, konsistent zur Monatssicht der Methodendoku). Rechenvertrag: kum = cumsum(delta_monat) wird auf JEDE Zeile der B-Matrix addiert (sweep ueber Spalten, dimnames bleiben erhalten), trough je Pfad neu als Zeilen-Minimum, metrics$plan_trough nach DERSELBEN Minimum-Logik fortgeschrieben als min(plan_trough + kum) (der out-Vertrag traegt keinen monatlichen Plan-Pfad — der Plan-Tiefpunkt-Pegel wird konstant gehalten, dokumentierte Naeherung); ALLE uebrigen Felder (phase, scenario, Theta, fan, P_under, spec, R, plot_path, endbestand_path, diagnostics und die restlichen metrics-Eintraege) unveraendert durchgereicht, names(out) bleibt erhalten; Nullvektor-delta -> identical(out). Nachgelagerte Projektionen (deckung_from_out, vergleich_from_outs) rechnen aus out$trough bzw. metrics$plan_trough frisch und bleiben damit konsistent.",
+      "engine_funktionen": []
+    },
+    {
+      "name": "szenario_name_mit_paket",
+      "datei": "R/massnahmen.R",
+      "zweck": "Benannte, testbare Namenskonvention fuer die spaetere UI-/compare-Anbindung in phase-11-massnahmen-ui: szenario_name_mit_paket(basisname, paket) liefert '<basisname> + <n> Massnahmen' mit n = Anzahl der Paket-Eintraege — reine String-Funktion ohne Katalog-Zugriff und ohne Formatierung darueber hinaus.",
+      "engine_funktionen": []
+    }
+  ],
+  "tests": [
+    {
+      "datei": "tests/test_massnahmen.R",
+      "art": "testthat",
+      "rot_zuerst": true,
+      "prueft": "Spezifikation des Massnahmen-Kerns an EXTERNEN Orakeln, rot zuerst (ungeschuetztes source() von R/massnahmen.R am Kopf bricht ab, solange die Datei fehlt; kein skip, kein succeed, keine Anker-/Tier-1-Literale, keine Fixture-Mappe, kein MC — nur Stubs, kleine Laufzeit): (1) Katalog-Vertrag — data.frame mit exakt den Spalten id/name/kategorie/typ/treiber/hinweis, >= 12 Zeilen, ids eindeutig und snake_case, typ nur treiber/delta mit harten Mindestzahlen-Waechtern (>= 4 treiber, >= 6 delta), alle drei Kategorien vertreten, jede treiber-Zeile mit gueltigem Treibernamen und jede delta-Zeile mit NA, name/hinweis nicht leer; (2) gepinnte Beispiel-Massnahmen des Fachvertrags (preiserhoehung/preis, mengenprogramm/menge, tarifmoderation/tarif, energieeinsparung/energie; gesellschafterdarlehen, investitionsstopp, sale_and_lease_back, stundung_verbindlichkeiten, forderungsverkauf, kurzarbeit als delta); (3) quantifiziere_paket an synthetischen Paketen: (a) zwei Massnahmen auf DENSELBEN Treiber -> override ist die extern gerechnete Summe, plus Gegenprobe mit zwei getrennten Treibern (je eigener Eintrag), (b) einmalig -> Betrag identical exakt in start_m und 0 sonst, (c) linear mit Abschnitt am Horizont (H = 6, start_m = 5, dauer = 4) -> genau 2 Raten a betrag/4, Rest abgeschnitten und NICHT umverteilt (identical gegen extern gebauten Vektor als Grenzfall-Pin plus Summen-Negativ-Pin gegen Umverteiler), (d) Mischpaket -> beide Kanaele gleichzeitig korrekt inkl. exakter Rueckgabe-Namen (treiber_overrides/delta_monat/doku) und doku-Vertrag (eine Zeile je Massnahme in Paketreihenfolge, wirkung_text nicht leer), (e) leeres Paket -> Nullvektor Laenge H, leere overrides, doku mit 0 Zeilen; betrag 0 erlaubt, (f) Fehlerfaelle: unbekannte id mit id im Fehlertext, start_m = 0, start_m = H+1; (4) massnahmen_overlay an einem synthetischen out-Stub im phase_simulation-Vertrag (B 3 x 4 mit paarweise unverwechselbaren Zeilen, trough konsistent als Zeilen-Minimum, metrics mit unabhaengig gesetztem plan_trough): der Test rechnet kum, B', trough' und plan_trough' = min(plan_trough + kum) SELBST (cumsum + Spalten-Schleife) und vergleicht jede Zelle (all.equal 1e-12 bzw. identical); Nicht-Trivialitaets-Waechter als harte Fails: delta_monat wechselt das Vorzeichen, kum != delta (kum-vs-punktuell-Verwechslung) und mindestens ein Pfad-trough VERSCHIEBT seinen Monatsindex (killt trough + kum[alter Argmin] statt Neu-Minimierung), Negativ-Pin plan_trough != plan + sum(delta); Durchreich-Waechter: names(res) == names(out), Theta/seed/S sowie alle metrics ausser plan_trough und phase/scenario/fan/P_under/spec/R/plot_path/endbestand_path/diagnostics identisch zum Stub; RNG-Waechter: .Random.seed nach dem Aufruf unveraendert, zweiter Aufruf identical (kein RNG, deterministisch); Neutralitaet: Nullvektor -> identical(out); (5) szenario_name_mit_paket: 'Basis + 2 Massnahmen' und 'Stress 2026 + 4 Massnahmen' (n = Anzahl Eintraege)."
+    }
+  ],
+  "anker": {
+    "tier1_unveraendert": true,
+    "phasen_anker": [
+      {
+        "kennzahl": "massnahmen_overlay: B / trough / metrics$plan_trough",
+        "kriterium": "Overlay-Treue der MC-freien Projektion: Neutralitaet (Nullvektor-delta liefert identical(out), kein Feld aendert sich) und kum-Identitaet (bei vorzeichenwechselndem delta_monat ist B' zellgenau B + cumsum(delta) je Spalte, trough' das neu minimierte Zeilen-Minimum mit mindestens einem verschobenen Monatsindex, plan_trough' = min(plan_trough + cumsum(delta))); Theta, seed und S werden unveraendert durchgereicht. Toleranz 1e-12, kein RNG — der Pruefausdruck baut seinen out-Stub selbst und ist ohne Engine-Lauf auswertbar.",
+        "pruefung": "local({ B <- rbind(c(0, -300, -100, 200), c(500, 100, 400, 300), c(-50, 700, 650, -20)); dimnames(B) <- list(NULL, paste0(\"M\", 1:4)); stub <- list(phase = \"simulation\", scenario = \"AnkerStub\", B = B, Theta = matrix(c(0.01, -0.02, 0.03, 0.005, -0.015, 0.025), nrow = 3, dimnames = list(NULL, c(\"menge\", \"preis\"))), fan = apply(B, 2, quantile, probs = c(.05, .5, .95)), P_under = colMeans(B < 0), trough = apply(B, 1, min), metrics = list(S = 3L, seed = 99L, H = 4L, plan_trough = -480), spec = list(menge = list(cv = 0.1)), R = diag(2), plot_path = NA_character_, endbestand_path = NA_character_, diagnostics = list(n_treiber = 2L)); delta <- c(-100, 250, -400, 50); kum <- cumsum(delta); Berw <- B; for (m in 1:4) Berw[, m] <- B[, m] + kum[m]; res <- massnahmen_overlay(stub, delta); identical(massnahmen_overlay(stub, numeric(4)), stub) && isTRUE(all.equal(res$B, Berw, tolerance = 1e-12)) && isTRUE(all.equal(res$trough, apply(Berw, 1, min), tolerance = 1e-12)) && any(apply(B, 1, which.min) != apply(Berw, 1, which.min)) && isTRUE(all.equal(res$metrics$plan_trough, min(stub$metrics$plan_trough + kum), tolerance = 1e-12)) && identical(res$Theta, stub$Theta) && identical(res$metrics$seed, stub$metrics$seed) && identical(res$metrics$S, stub$metrics$S) })",
+        "toleranz": 1e-12,
+        "toleranz_bezug": "absolut"
+      }
+    ]
+  },
+  "schirm": {
+    "menue_wert": null,
+    "reiter": [],
+    "kennzahlen": []
+  }
+}

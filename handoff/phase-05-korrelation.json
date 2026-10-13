@@ -1,0 +1,101 @@
+{
+  "schema_version": 1,
+  "phase": "phase-05-korrelation",
+  "titel": "Korrelation",
+  "vorlage": "legacy/04_abhaengigkeit.R",
+  "funktionen": [
+    {
+      "name": "phase_korrelation",
+      "datei": "R/phase_korrelation.R",
+      "zweck": "Liest die Zielkorrelation aus Blatt 07, richtet sie auf die Treiberreihenfolge aus build_dists aus und repariert sie via kernel-make_psd zur naechsten positiv-semidefiniten Matrix; prueft Struktur (Einheitsdiagonale, symmetrisch, Werte in [-1,1]) und Treiber-Abdeckung (dimnames == Treiber aus spec), sichert das Ergebnis als korrelation.rds (Eingabe fuer Phase 6) und gibt ein Ergebnisobjekt zurueck (R, spec, M, method, ev_before, ev_after, max_aenderung, Treiber-Matrix, plot_path, kor_path, diagnostics mit n_treiber/ziel_psd/repariert_psd) statt in die Konsole zu drucken.",
+      "engine_funktionen": ["build_dists", "make_psd"]
+    },
+    {
+      "name": ".plot_abhaengigkeit",
+      "datei": "R/phase_korrelation.R",
+      "zweck": "Zeichnet die reparierte Korrelationsmatrix als Heatmap (Treiberachsen, Zellwerte, Divergenzpalette -1..1) als PNG in den Szenario-Workspace; gibt den Pfad zurueck oder NA, wenn kein Grafikgeraet verfuegbar ist (sauberer Headless-Fallback).",
+      "engine_funktionen": []
+    }
+  ],
+  "tests": [
+    {
+      "datei": "tests/test_phase_kor.R",
+      "art": "testthat",
+      "rot_zuerst": true,
+      "prueft": "Treue (out$R ist identisch mit dem direkten Engine-Lauf make_psd(M), wobei M unabhaengig aus Blatt 07 und der Treiberreihenfolge aus build_dists rekonstruiert wird; die UI verbiegt die Zielmatrix, die Ausrichtung und die Reparatur nicht), unabhaengig nachgerechnete PSD-Eigenschaft der reparierten Matrix via eigen() (NICHT ueber make_psd aufgerufen — faengt eine Mutation der Reparaturfunktion), Korrelationsmatrix-Struktur (Diagonale 1, symmetrisch, alle Eintraege in [-1,1]), Treiber-Abdeckung dimnames(R)==names(spec) beider Dimensionen (Eingabevertrag fuer Phase 6), korrelation.rds-Roundtrip readRDS identisch zu out$R, Fehlerfaelle: fehlendes Blatt 07_Korrelation -> sauberer benannter Fehler, Treiber aus 06 nicht in 07 -> sauberer benannter Fehler, Plot-Fallback ohne Grafikgeraet (NA, kein harter Abbruch), Zurueckweisung von Nicht-Szenarien."
+    }
+  ],
+  "anker": {
+    "tier1_unveraendert": true,
+    "phasen_anker": [
+      {
+        "kennzahl": "R",
+        "kriterium": "Treue: die reparierte Matrix des Wrappers ist identisch mit dem direkten Engine-Lauf make_psd(M) — M unabhaengig aus Blatt 07 und der Treiberreihenfolge aus build_dists rekonstruiert. Die UI verbiegt die Zielmatrix, die Ausrichtung und die Reparatur nicht.",
+        "pruefung": "local({ m <- load_model(WB); spec <- build_dists(m); d <- names(spec); raw <- m$corr_raw; M <- as.matrix(raw[, -1]); rownames(M) <- as.character(raw[[1]]); storage.mode(M) <- \"numeric\"; M <- M[d, d, drop = FALSE]; isTRUE(all.equal(out$R, make_psd(M), tolerance = 0)) })",
+        "toleranz": 0,
+        "toleranz_bezug": "absolut"
+      },
+      {
+        "kennzahl": "min(eigen(R))",
+        "kriterium": "Unabhaengig nachgerechnete PSD-Eigenschaft: der kleinste Eigenwert der reparierten Matrix ist >= 0, geprueft via eigen() und NICHT via make_psd — faengt eine Mutation der Reparaturfunktion.",
+        "pruefung": "local({ e <- eigen((out$R + t(out$R))/2, symmetric = TRUE, only.values = TRUE)$values; min(e) >= -1e-6 })",
+        "toleranz": 1e-06,
+        "toleranz_bezug": "absolut"
+      },
+      {
+        "kennzahl": "R (Struktur)",
+        "kriterium": "Gueltige Korrelationsmatrix: Einheitsdiagonale, symmetrisch, alle Eintraege in [-1, 1].",
+        "pruefung": "all(abs(diag(out$R) - 1) < 1e-9) && isTRUE(all.equal(out$R, t(out$R), tolerance = 1e-9)) && isTRUE(all(out$R >= -1 - 1e-9 & out$R <= 1 + 1e-9))",
+        "toleranz": 1e-09,
+        "toleranz_bezug": "absolut"
+      },
+      {
+        "kennzahl": "dimnames(R)",
+        "kriterium": "Treiber-Abdeckung / Eingabevertrag Phase 6: Zeilen- und Spaltennamen der reparierten Matrix sind genau die Treiber aus spec in dessen Reihenfolge (die Simulation indiziert R[drivers, drivers]).",
+        "pruefung": "identical(rownames(out$R), names(out$spec)) && identical(colnames(out$R), names(out$spec))",
+        "toleranz": 0,
+        "toleranz_bezug": "absolut"
+      },
+      {
+        "kennzahl": "kor_path round-trip",
+        "kriterium": "Artefakt-Vertrag fuer Phase 6: die gesicherte korrelation.rds liest sich bit-identisch zum Ergebnisobjekt R.",
+        "pruefung": "!is.na(out$kor_path) && file.exists(out$kor_path) && identical(readRDS(out$kor_path), out$R)",
+        "toleranz": 0,
+        "toleranz_bezug": "absolut"
+      }
+    ]
+  },
+  "schirm": {
+    "menue_wert": "korrelation",
+    "reiter": [
+      {
+        "titel": "Korrelations-Heatmap",
+        "outputs": [
+          { "output_id": "kor_diag", "typ": "uiOutput", "inhalt": "Diagnosezeile: Treiberanzahl, Badge Zielmatrix PSD (vor Reparatur), Badge reparierte Matrix PSD, Reparaturmethode (make_psd), max. Aenderung Ziel -> repariert." },
+          { "output_id": "kor_plot", "typ": "imageOutput", "inhalt": "PNG-Heatmap der reparierten Korrelationsmatrix (Treiberachsen, Zellwerte -1..1, Divergenzpalette rot-weiss-blau)." }
+        ]
+      },
+      {
+        "titel": "Treiber-Matrix",
+        "outputs": [
+          { "output_id": "kor_tbl", "typ": "tableOutput", "inhalt": "Reparierte Korrelationsmatrix je Treiberpaar (auf 2 Dezimalstellen formatiert), Zeilen-/Spaltennamen = Treiber aus Blatt 06." }
+        ]
+      },
+      {
+        "titel": "Reparatur & Vertrag",
+        "outputs": [
+          { "output_id": "kor_recon", "typ": "uiOutput", "inhalt": "Pfad der gesicherten korrelation.rds (Eingabe fuer Phase 6), Reparaturmethode, kleinster Eigenwert vor/nach Reparatur, max. Aenderung, Treiber-Abdeckung (alle Treiber aus 06 stehen in 07)." }
+        ]
+      }
+    ],
+    "kennzahlen": [
+      { "dom_id": "kor-treiber-anzahl", "kennzahl": "Anzahl Treiber in der Korrelationsmatrix", "quelle": "diagnostics$n_treiber", "format": "ganzzahl" },
+      { "dom_id": "kor-psd-vorher", "kennzahl": "Status Zielmatrix (Blatt 07) PSD", "quelle": "diagnostics$ziel_psd", "format": "badge" },
+      { "dom_id": "kor-psd-nachher", "kennzahl": "Status reparierte Matrix PSD", "quelle": "diagnostics$repariert_psd", "format": "badge" },
+      { "dom_id": "kor-ev-nachher", "kennzahl": "Kleinster Eigenwert repariert", "quelle": "ev_after", "format": "text" },
+      { "dom_id": "kor-methode", "kennzahl": "Reparaturmethode", "quelle": "method", "format": "text" },
+      { "dom_id": "kor-max-aenderung", "kennzahl": "Max. Aenderung Ziel -> repariert", "quelle": "max_aenderung", "format": "text" },
+      { "dom_id": "kor-kor-pfad", "kennzahl": "Pfad der gesicherten Korrelationsmatrix (korrelation.rds)", "quelle": "kor_path", "format": "text" }
+    ]
+  }
+}

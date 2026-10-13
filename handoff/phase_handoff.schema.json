@@ -1,0 +1,161 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "phase_handoff.schema.json",
+  "title": "Phasen-Handoff — Liqui-App",
+  "description": "Maschinenlesbares Uebergabe-Artefakt fuer genau EINE Phase aus PROGRESS.md (Phasenliste der Entwicklungsumgebung, nicht in diesem Repository; siehe https://github.com/DanielMoj/harness-template). Der Erzeuger (Planner) fuellt es vollstaendig aus; Test-Builder (Runde T), Builder (Runde I) und Gates konsumieren es ohne Rueckfragen. Alle Pfade relativ zur Repo-Wurzel. Felder weglassen oder erfinden ist unzulaessig (required + additionalProperties: false). Ablage: handoff/<phase>.json.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "phase", "titel", "vorlage", "funktionen", "tests", "anker", "schirm"],
+  "properties": {
+    "schema_version": {
+      "const": 1,
+      "description": "Version dieses Schemas; wird bei jeder Schema-Aenderung erhoeht."
+    },
+    "phase": {
+      "type": "string",
+      "pattern": "^phase-[0-9]{2}-[a-z]+$",
+      "description": "Unit-ID exakt wie in PROGRESS.md bzw. Ausgabe von scripts/next_unit.sh (beides Entwicklungsumgebung, nicht in diesem Repository), z. B. phase-04-verteilungen."
+    },
+    "titel": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Anzeigename der Phase (Menue-Label im PHASEN-Vektor in app/app.R)."
+    },
+    "vorlage": {
+      "type": ["string", "null"],
+      "pattern": "^legacy/.+\\.(R|py)$",
+      "description": "Legacy-Skript, das gewrappt wird (CLAUDE.md, Schritt 1); null, wenn es keine Vorlage gibt."
+    },
+    "funktionen": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Funktionsliste: was gebaut wird. Jede neue/geaenderte R-Funktion. kernel/ ist als Zieldatei verboten (Kernel-Guard).",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "datei", "zweck", "engine_funktionen"],
+        "properties": {
+          "name": { "type": "string", "minLength": 1, "description": "R-Funktionsname, z. B. phase_wochen." },
+          "datei": { "type": "string", "pattern": "^(R|app)/[^/]+\\.R$", "description": "Zieldatei; nur R/ oder app/ — nie kernel/, nie tests/ (Tests stehen unter tests)." },
+          "zweck": { "type": "string", "minLength": 1, "description": "Ein bis zwei Saetze: was die Funktion tut und was sie zurueckgibt (Ergebnisobjekt statt Druck)." },
+          "engine_funktionen": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Kernel-Funktionen, die UNVERAENDERT aufgerufen werden (leeres Array fuer reine Helfer ohne Engine-Aufruf)."
+          }
+        }
+      }
+    },
+    "tests": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Testliste der Phase. rot_zuerst=true markiert Spezifikations-Tests der Runde T: sie muessen VOR der Implementierung gegen den aktuellen Stand rot sein (Gate: scripts/check_redfirst.R der Entwicklungsumgebung, nicht in diesem Repository) und werden danach nicht mehr geaendert (Spec-Guard/Test-Bestand-Guard). rot_zuerst=false sind zusaetzliche Tests der Runde I.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["datei", "art", "rot_zuerst", "prueft"],
+        "properties": {
+          "datei": { "type": "string", "pattern": "^tests/test[^/]*\\.R$", "description": "Testdatei; Namensmuster tests/test*.R (so erkennt sie der Orchestrator der Entwicklungsumgebung)." },
+          "art": { "enum": ["testthat", "shinytest2"], "description": "testthat = gegen Engine-Werte; shinytest2 = faehrt das Control headless (Pflicht, sobald ein Control existiert)." },
+          "rot_zuerst": { "type": "boolean" },
+          "prueft": { "type": "string", "minLength": 1, "description": "Klartext: welche Eigenschaften die Datei absichert (Treue, Invarianten, Fehlerfaelle — nicht nur Happy-Path)." }
+        }
+      }
+    },
+    "anker": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Anker-Kriterien dieser Phase. Jede Pruefung ist ein numerischer Vergleich in Code (testthat/Gate), nie ueber einen LLM-Call. Erwartungswerte werden nie hartcodiert, um gruen zu werden.",
+      "required": ["tier1_unveraendert", "phasen_anker"],
+      "properties": {
+        "tier1_unveraendert": {
+          "const": true,
+          "description": "Pflicht-Zusage jeder Phase: Historie -5.235.600, Tiefpunkt -5.135.990 (M3), Planergebnis 2.672.411 bleiben euro-identisch, Toleranz 0. Geprueft von tests/run_all.R und vom Anker-Skript scripts/check_anchors.R der Entwicklungsumgebung (nicht in diesem Repository)."
+        },
+        "phasen_anker": {
+          "type": "array",
+          "description": "Phasenspezifische Invarianten zusaetzlich zu Tier-1. Leer nur, wenn die Phase nachweislich keine eigene Invariante hat.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kennzahl", "kriterium", "pruefung", "toleranz", "toleranz_bezug"],
+            "properties": {
+              "kennzahl": { "type": "string", "minLength": 1, "description": "Feld im Ergebnisobjekt der Phasenfunktion, z. B. rueckabstimmung$diff." },
+              "kriterium": { "type": "string", "minLength": 1, "description": "Klartext-Invariante." },
+              "pruefung": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Selbstauswertbarer R-Ausdruck, der TRUE liefert, wenn der Anker haelt. Kontext: kernel/engine.R, R/scenario.R und die Phasenfunktion sind gesourct; WB = fixtures/Mandant_Liquiditaetsmodell_Vorlage.xlsx; out = Ergebnisobjekt der Phasenfunktion auf WB."
+              },
+              "toleranz": { "type": "number", "minimum": 0, "description": "0 = exakte Identitaet." },
+              "toleranz_bezug": { "enum": ["absolut", "relativ"] }
+            }
+          }
+        }
+      }
+    },
+    "schirm": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Geforderte Schirm-Elemente in app/app.R. Shiny-Output-IDs (snake_case) sind zugleich DOM-Container-IDs; Kennzahl-IDs (kebab-case) sind feste DOM-IDs einzelner Werte, damit Playwright/shinytest2 Werte aus dem DOM liest statt aus Pixeln. menue_wert null == schirm-lose Einheit (z. B. reiner Sidebar-Download): der Pruefumfang reduziert sich auf die kennzahlen-dom_ids (DOM-weit pruefbar, auch in der Sidebar), Reiter-/Output-Pruefungen entfallen — kennzahlen bleiben auch dann Pflicht.",
+      "required": ["menue_wert", "reiter", "kennzahlen"],
+      "if": { "properties": { "menue_wert": { "type": "string" } } },
+      "then": {
+        "$comment": "reiter wird nur bei gesetztem menue_wert verlangt: hat die Einheit einen Phasen-Schirm, braucht sie >= 1 Reiter; bei menue_wert null (schirm-lose Einheit) ist das leere Array die valide Darstellung.",
+        "properties": { "reiter": { "minItems": 1 } }
+      },
+      "properties": {
+        "menue_wert": {
+          "type": ["string", "null"],
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "description": "Wert des Eintrags im PHASEN-Vektor (app/app.R), z. B. wochen. null = schirm-lose Einheit ohne Eintrag im PHASEN-Vektor und ohne Phasen-Schirm; geprueft werden dann nur die kennzahlen-dom_ids, outputs entfallen."
+        },
+        "reiter": {
+          "type": "array",
+          "description": "Reiter (nav_panel) des Phasen-Schirms mit ihren Shiny-Outputs. Nur bei gesetztem menue_wert verlangt (>= 1 via if/then dieses Blocks); bei menue_wert null (schirm-lose Einheit) ist reiter das leere Array.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["titel", "outputs"],
+            "properties": {
+              "titel": { "type": "string", "minLength": 1, "description": "nav_panel-Titel, woertlich." },
+              "outputs": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["output_id", "typ", "inhalt"],
+                  "properties": {
+                    "output_id": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$", "description": "Shiny-Output-ID = DOM-ID des Containers." },
+                    "typ": { "enum": ["uiOutput", "tableOutput", "plotOutput", "imageOutput", "textOutput", "verbatimTextOutput"] },
+                    "inhalt": { "type": "string", "minLength": 1, "description": "Was der Output zeigt." }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "kennzahlen": {
+          "type": "array",
+          "description": "Jede einzeln angezeigte Kennzahl der Phase mit fester DOM-ID. textContent der ID ist genau der formatierte Wert ohne Einheit; bei format=badge steht der Status in der CSS-Klasse (text-bg-success/text-bg-danger), textContent ist das Label.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["dom_id", "kennzahl", "quelle", "format"],
+            "properties": {
+              "dom_id": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$", "description": "Feste, sprechende DOM-ID (kebab-case, eindeutig in der App)." },
+              "kennzahl": { "type": "string", "minLength": 1, "description": "Klartextname inkl. Einheit." },
+              "quelle": { "type": "string", "minLength": 1, "description": "Feld im Ergebnisobjekt der Phasenfunktion, z. B. kpis$trough." },
+              "format": {
+                "enum": ["fmt", "ganzzahl", "dezimal1", "text", "badge"],
+                "description": "fmt = deutsche Zahlenformatierung ueber kernel-fmt(); ganzzahl = sprintf %d; dezimal1 = sprintf %.1f; text = Klartext; badge = Status in CSS-Klasse."
+              },
+              "bedingt": { "type": "boolean", "default": false, "description": "true = Element erscheint nur unter einer Bedingung; die Bedingung im Feld kennzahl nennen." }
+            }
+          }
+        }
+      }
+    }
+  }
+}

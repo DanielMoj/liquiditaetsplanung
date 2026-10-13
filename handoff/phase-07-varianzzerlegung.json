@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "phase": "phase-07-varianzzerlegung",
+  "titel": "Varianzzerlegung",
+  "vorlage": "legacy/05b_varianzzerlegung.R",
+  "funktionen": [
+    {
+      "name": "phase_varianzzerlegung",
+      "datei": "R/phase_varianzzerlegung.R",
+      "zweck": "Zerlegt die Streuung des Liquiditaets-Tiefpunkts (min ueber die Endbestand-Zeile von run_model je Pfad) in ihre Quellen: drei Laeufe gleicher Groesse S ueber die EINGEFRORENE Engine — T_full (epistemische Jahreswerte korreliert ueber draw_epistemic_correlated gezogen, monatliches Rauschen AN), T_epi (DIESELBEN epistemischen Ziehungen Theta, Rauschen AUS = Noise-Matrix aus Einsen), T_ale (Treiber fix auf mdl$assume/Modes, Rauschen AN). Selbstenthalten wie phase_simulation (spec via build_dists mit estimate_cv_harmonic-CV, R via make_psd aus Blatt 07 selbst gerechnet), KEINE Kernel-Aenderung, kein Aufruf von phase_simulation; die Rauschlogik ist bit-treu zur inneren Schicht von R/phase_simulation.R (gemeinsamer Monatsschock je Basis menge/material, exp-transformiert, sigma aus spec$cv). Determinismus: set.seed(seed) DIREKT vor der ersten epistemischen Ziehung (IMPLEMENTATION_RULES, Seed = Szenario-Schluessel); S als Argument mit Default sc$sim$paths, Nicht-Szenarien werden zurueckgewiesen. Gibt ein Ergebnisobjekt zurueck statt in die Konsole zu drucken: phase = varianzzerlegung, scenario = sc$name, die drei ROH-Vektoren T_full/T_epi/T_ale (Laenge S), Theta (S x k, dimnames = Treiber), alle Felder von varianz_from_troughs, seed, S.",
+      "engine_funktionen": ["draw_epistemic_correlated", "run_model", "build_dists", "estimate_cv_harmonic", "make_psd"]
+    },
+    {
+      "name": "varianz_from_troughs",
+      "datei": "R/phase_varianzzerlegung.R",
+      "zweck": "Die EINE reine Zerlegungsfunktion getrennt vom Wrapper (Muster deckung_from_out), loest KEINE Simulation aus: varianz_from_troughs(T_full, T_epi, T_ale) rechnet auf den drei Tiefpunkt-Vektoren gleicher Laenge (stopifnot) und gibt eine Liste zurueck mit var_gesamt, var_epi, var_ale, var_inter (= var_gesamt - var_epi - var_ale, Interaktionsrest), sd_gesamt/sd_epi/sd_ale (sqrt, bei epi/ale mit max(., 0)), anteil_epi/anteil_ale/anteil_inter (Anteile an var_gesamt, Summe exakt 1) und S (Laenge der Vektoren). Numerik bleibt numerisch — fmt()/Prozent-Anzeige passieren erst im app-Render.",
+      "engine_funktionen": []
+    }
+  ],
+  "tests": [
+    {
+      "datei": "tests/test_phase_var.R",
+      "art": "testthat",
+      "rot_zuerst": true,
+      "prueft": "EXTERNE Orakel statt Selbstkonsistenz: der Test rechnet var()/sqrt()/Anteile SELBST aus den zurueckgegebenen Roh-Vektoren T_full/T_epi/T_ale und vergleicht mit jedem Feld (all.equal, Toleranz 1e-12), zusaetzlich die reine Funktion varianz_from_troughs an synthetischen Vektoren inkl. stopifnot-Zurueckweisung ungleicher Laengen. Regime-Orakel T_epi: fuer herausgegriffene Pfade s wird der Tiefpunkt extern rekonstruiert (mdl$assume mit Theta[s, ] ueberschrieben, run_model mit Noise-Matrix aus Einsen, min der Endbestand-Zeile) und exakte Gleichheit mit T_epi[s] verlangt. Regime-Orakel T_ale: Nicht-Trivialitaets-Guard var(T_ale) > 0 UND var(T_epi) > 0 auf der Fixture (harter Fail, kein skip). Zerlegungsidentitaet extern: var_inter == var(T_full) - var(T_epi) - var(T_ale) vom Test selbst gerechnet, Anteilssumme anteil_epi + anteil_ale + anteil_inter == 1. Determinismus: zweiter Aufruf mit identischem sc liefert identical(T_full) und identical(T_ale). Struktur: Vektorlaengen == S, Theta S x k mit unabhaengig rekonstruierten Treiber-dimnames, sd_* >= 0, seed und S durchgereicht, S-Argument uebersteuert sc$sim$paths, Zurueckweisung von Nicht-Szenarien. Keine Anker-Literale; Fixture fixtures/Mandant_Liquiditaetsmodell_Vorlage.xlsx, kleines S (sim = list(paths = 16, seed = 2026)), kein shinytest2."
+    }
+  ],
+  "anker": {
+    "tier1_unveraendert": true,
+    "phasen_anker": [
+      {
+        "kennzahl": "var_inter / anteil_epi + anteil_ale + anteil_inter",
+        "kriterium": "Zerlegungsidentitaet + Anteilssumme: var_inter ist exakt der Interaktionsrest var(T_full) - var(T_epi) - var(T_ale) aus den zurueckgegebenen Roh-Vektoren, und die drei Varianzanteile summieren sich exakt zu 1 — faengt eine verdrehte Zerlegung, vertauschte Regime-Vektoren oder hartcodierte Anteile.",
+        "pruefung": "isTRUE(all.equal(out$var_inter, var(out$T_full) - var(out$T_epi) - var(out$T_ale), tolerance = 1e-12)) && isTRUE(all.equal(out$anteil_epi + out$anteil_ale + out$anteil_inter, 1, tolerance = 1e-12))",
+        "toleranz": 1e-12,
+        "toleranz_bezug": "absolut"
+      }
+    ]
+  },
+  "schirm": {
+    "menue_wert": "varianzzerlegung",
+    "reiter": [
+      {
+        "titel": "Varianzzerlegung",
+        "outputs": [
+          {
+            "output_id": "varianz_recon",
+            "typ": "uiOutput",
+            "inhalt": "Standardabweichung des Tiefpunkts gesamt/epistemisch/aleatorisch in EUR (fmt), die Varianzanteile epistemisch/aleatorisch/Interaktionsrest in Prozent, Hinweis auf den Interaktionsrest (klein bei naeherungsweiser Unabhaengigkeit) sowie S (Pfadanzahl je Lauf) und seed (Szenario-Schluessel)."
+          }
+        ]
+      }
+    ],
+    "kennzahlen": [
+      { "dom_id": "varianz-sd-gesamt", "kennzahl": "SD Tiefpunkt gesamt (EUR)", "quelle": "sd_gesamt", "format": "fmt" },
+      { "dom_id": "varianz-sd-epi", "kennzahl": "SD Tiefpunkt epistemisch (EUR)", "quelle": "sd_epi", "format": "fmt" },
+      { "dom_id": "varianz-sd-ale", "kennzahl": "SD Tiefpunkt aleatorisch (EUR)", "quelle": "sd_ale", "format": "fmt" },
+      { "dom_id": "varianz-anteil-epi", "kennzahl": "Varianzanteil epistemisch [%] (100 x anteil_epi)", "quelle": "anteil_epi", "format": "dezimal1" },
+      { "dom_id": "varianz-anteil-ale", "kennzahl": "Varianzanteil aleatorisch [%] (100 x anteil_ale)", "quelle": "anteil_ale", "format": "dezimal1" },
+      { "dom_id": "varianz-anteil-inter", "kennzahl": "Varianzanteil Interaktion [%] (100 x anteil_inter)", "quelle": "anteil_inter", "format": "dezimal1" }
+    ]
+  }
+}

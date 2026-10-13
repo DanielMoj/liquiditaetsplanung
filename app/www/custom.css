@@ -1,0 +1,248 @@
+/* ===========================================================================
+   app/www/custom.css — Design-Tokens + Bootstrap-Overrides (Liqui-App)
+
+   Token-Quelle: Design-Notizen und HTML-Mockup aus der Entwicklungsumgebung
+   (nicht in diesem Repository). Die dichten App-Groessen (13.5/12.5/11.5/
+   10.5px, KPI 23px) und das Negativ-Rot stammen aus dem App-Screen des
+   Mockups.
+   Alle Regeln unterhalb :root referenzieren ausschliesslich --ui-*.
+   Schrift: Figtree als Variable Font (400-600) lokal aus app/www/fonts/,
+   kein Netz-Zugriff zur Laufzeit (Offline-Bundle).
+   ========================================================================= */
+
+/* --- Schrift: Figtree Variable Font (400-600), lokal gebuendelt ---------- */
+@font-face {
+  font-family: "Figtree";
+  font-style: normal;
+  font-weight: 400 600;
+  font-display: swap;
+  src: url("fonts/figtree-var-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6,
+    U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122,
+    U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "Figtree";
+  font-style: normal;
+  font-weight: 400 600;
+  font-display: swap;
+  src: url("fonts/figtree-var-latin-ext.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7,
+    U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F,
+    U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F,
+    U+A720-A7FF;
+}
+
+/* --- Design-Tokens -------------------------------------------------------- */
+:root {
+  /* Farben (Palette) */
+  --ui-primary: #0A0A0A;             /* Ink: Buttons, Headlines, aktive Nav */
+  --ui-navy: #0D1B2A;                /* dunkle Sektionen (reserviert) */
+  --ui-akzent: #DCE9F8;              /* Eisblau: KPI-/Statistikband */
+  --ui-akzent-hell: #EDF3FB;         /* Blassblau: sekundaere Flaechen */
+  --ui-bg: #F4F7FB;                  /* Seitengrund des App-Screens */
+  --ui-flaeche: #FFFFFF;             /* Panels, Karten, Kopf-/Nav-Leiste */
+  --ui-text: #1A1A1A;
+  --ui-text-gedaempft: #55606E;
+  --ui-negativ: #A94438;             /* negative Betraege in Tabellen */
+  --ui-signal-rot: #BE3D2A;          /* Status "kritisch" */
+  --ui-signal-gruen: #2E8B57;        /* Status "ok" */
+  --ui-plan-blau: #3F6796;           /* Plan-Linie (P50) im Diagramm */
+  --ui-linie: #E6EBF2;               /* Trennlinien in Leisten und Grids */
+  --ui-panel-rand: #E2E8F0;          /* Panel-Rahmen */
+  --ui-zeilen-linie: #EDF1F5;        /* Tabellenzeilen-Trenner */
+  --ui-linie-dunkel: rgba(17, 17, 17, 0.15);
+  --ui-linie-auf-navy: rgba(255, 255, 255, 0.25);
+
+  /* Typografie: Figtree 400/500/600 — nie fetter als 600 */
+  --ui-font: "Figtree", "Helvetica Neue", Arial, Helvetica, sans-serif;
+  --ui-fw-regular: 400;
+  --ui-fw-medium: 500;
+  --ui-fw-semibold: 600;
+  --ui-fs-brand: 16px;               /* App-Titel (Mockup-Logo waere 22px) */
+  --ui-fs-titel: 14px;               /* Panel-Titel */
+  --ui-fs-body: 13.5px;              /* Grundschrift (dichter App-Screen) */
+  --ui-fs-tabelle: 12.5px;
+  --ui-fs-klein: 11.5px;             /* Unterzeilen, Hinweise */
+  --ui-fs-eyebrow: 10.5px;           /* UPPERCASE-Labels */
+  --ui-fs-mikro: 10px;               /* Tabellen-Spaltenkoepfe */
+  --ui-fs-kpi: 23px;                 /* KPI-Zahlen */
+  --ui-lh-body: 1.5;
+  --ui-ls-eng: -0.01em;              /* grosse Zahlen/Headlines */
+  --ui-ls-brand: -0.02em;
+  --ui-ls-eyebrow: 0.08em;
+  --ui-ls-tabellenkopf: 0.06em;
+
+  /* Radien + Abstaende */
+  --ui-radius: 2px;                  /* "eckig": ueberall 2px */
+  --ui-abstand-1: 4px;
+  --ui-abstand-2: 8px;
+  --ui-abstand-3: 12px;
+  --ui-abstand-4: 16px;
+  --ui-abstand-5: 20px;
+  --ui-abstand-6: 24px;
+
+  /* Bootstrap-5.3-Bruecke: BS-Variablen auf die Tokens ziehen */
+  --bs-border-radius: var(--ui-radius);
+  --bs-border-radius-sm: var(--ui-radius);
+  --bs-border-radius-lg: var(--ui-radius);
+  --bs-border-radius-xl: var(--ui-radius);
+  --bs-border-radius-xxl: var(--ui-radius);
+  --bs-border-radius-pill: var(--ui-radius);
+  --bs-border-color: var(--ui-panel-rand);
+}
+
+/* --- Basis ----------------------------------------------------------------- */
+body {
+  font-family: var(--ui-font);
+  font-size: var(--ui-fs-body);
+  line-height: var(--ui-lh-body);
+  color: var(--ui-text);
+  background-color: var(--ui-bg);
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+h1, h2, h3, h4, h5, h6 {
+  font-weight: var(--ui-fw-medium);
+  letter-spacing: var(--ui-ls-eng);
+  color: var(--ui-primary);
+}
+b, strong { font-weight: var(--ui-fw-semibold); }
+small, .small { font-size: var(--ui-fs-klein); }
+.text-muted { color: var(--ui-text-gedaempft) !important; }
+.negativ { color: var(--ui-negativ); }
+
+/* --- Kopfleiste + Sidebar: weisses Chrome auf hellem Grund ------------------ */
+.navbar {
+  background-color: var(--ui-flaeche);
+  border-bottom: 1px solid var(--ui-linie);
+  min-height: 52px;
+}
+.navbar-brand, .bslib-page-title {
+  color: var(--ui-primary);
+  font-size: var(--ui-fs-brand);
+  font-weight: var(--ui-fw-semibold);
+  letter-spacing: var(--ui-ls-brand);
+}
+.bslib-sidebar-layout > .sidebar {
+  background-color: var(--ui-flaeche);
+  border-right: 1px solid var(--ui-linie);
+}
+
+/* --- Panels/Karten: 1px-Rahmen, 2px-Radius, kein Schatten ------------------- */
+.card {
+  --bs-box-shadow: none;
+  background-color: var(--ui-flaeche);
+  border: 1px solid var(--ui-panel-rand);
+  border-radius: var(--ui-radius);
+  box-shadow: none;
+}
+.card > .card-header {
+  background-color: transparent;
+  border-bottom: 1px solid var(--ui-linie);
+  color: var(--ui-primary);
+  font-size: var(--ui-fs-titel);
+  font-weight: var(--ui-fw-medium);
+}
+
+/* --- Reiter: Unterstrich-Navigation statt Bootstrap-Kaesten ----------------- */
+.nav-tabs {
+  --bs-nav-tabs-border-width: 0;
+  gap: var(--ui-abstand-6);
+  border-bottom: 0;
+}
+.nav-tabs .nav-link {
+  color: var(--ui-text-gedaempft);
+  font-size: var(--ui-fs-body);
+  font-weight: var(--ui-fw-medium);
+  padding: var(--ui-abstand-2) 0;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: transparent;
+}
+.nav-tabs .nav-link:hover { color: var(--ui-primary); }
+.nav-tabs .nav-link.active {
+  color: var(--ui-primary);
+  background: transparent;
+  border-bottom: 2px solid var(--ui-primary);
+}
+
+/* --- KPI-Band: Eisblau, Eyebrow-Label, grosse Medium-Zahl -------------------
+   Einfaerbung bewusst einheitlich wie im Mockup; der Zustand (ok/kritisch)
+   bleibt ueber Badges und Texte sichtbar. !important schlaegt .text-bg-*. */
+.bslib-value-box.card {
+  background-color: var(--ui-akzent) !important;
+  color: var(--ui-text) !important;
+  border: 0;
+}
+.bslib-value-box .value-box-title {
+  font-size: var(--ui-fs-eyebrow);
+  font-weight: var(--ui-fw-medium);
+  text-transform: uppercase;
+  letter-spacing: var(--ui-ls-eyebrow);
+  color: var(--ui-text-gedaempft);
+}
+.bslib-value-box .value-box-value {
+  font-size: var(--ui-fs-kpi);
+  font-weight: var(--ui-fw-medium);
+  letter-spacing: var(--ui-ls-eng);
+  color: var(--ui-primary);
+}
+.bslib-value-box .value-box-area p {
+  font-size: var(--ui-fs-klein);
+  color: var(--ui-text-gedaempft);
+  margin-bottom: 0;
+}
+/* Kacheln zu EINEM Band verschmelzen: kein Grid-Gap, 1px-Trenner dazwischen */
+.bslib-grid:has(> .bslib-grid-item > .bslib-value-box) { gap: 0; }
+.bslib-grid > .bslib-grid-item + .bslib-grid-item > .bslib-value-box {
+  border-left: 1px solid var(--ui-linie-dunkel);
+}
+
+/* Statusleiste (letzte Karte im Hauptbereich) nicht auf Resthoehe strecken */
+main > .card:last-child { flex: 0 0 auto; }
+
+/* --- Tabellen: Zahlen rechts, tabellarische Ziffern, ruhige Linien ---------- */
+.table {
+  --bs-table-striped-bg: var(--ui-akzent-hell);
+  --bs-table-border-color: var(--ui-zeilen-linie);
+  font-size: var(--ui-fs-tabelle);
+  font-variant-numeric: tabular-nums;
+}
+.table > :not(caption) > * > * {
+  padding: var(--ui-abstand-1) var(--ui-abstand-2);
+}
+.table th, .table td { text-align: right; }
+.table th:first-child, .table td:first-child { text-align: left; }
+.table thead th, .table tr:first-child th {
+  font-size: var(--ui-fs-mikro);
+  font-weight: var(--ui-fw-medium);
+  text-transform: uppercase;
+  letter-spacing: var(--ui-ls-tabellenkopf);
+  color: var(--ui-text-gedaempft);
+  border-bottom: 1px solid var(--ui-primary);
+}
+
+/* --- Badges, Buttons, Formulare --------------------------------------------- */
+.badge {
+  border-radius: var(--ui-radius);
+  font-weight: var(--ui-fw-medium);
+}
+.badge.text-bg-success { background-color: var(--ui-signal-gruen) !important; }
+.badge.text-bg-danger  { background-color: var(--ui-signal-rot) !important; }
+.btn {
+  border-radius: var(--ui-radius);
+  font-weight: var(--ui-fw-medium);
+}
+.form-control, .form-select {
+  border-radius: var(--ui-radius);
+  border-color: var(--ui-panel-rand);
+  font-size: var(--ui-fs-body);
+}
+.form-check-input:checked {
+  background-color: var(--ui-primary);
+  border-color: var(--ui-primary);
+}
+.progress-bar { background-color: var(--ui-primary); }

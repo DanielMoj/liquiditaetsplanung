@@ -1,0 +1,9 @@
+.Rhistory
+.RData
+.Rproj.user/
+.env
+app/Rplots.pdf
+tests/Rplots.pdf
+runs/
+out/
+**/workspace/

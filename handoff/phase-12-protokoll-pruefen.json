@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "phase": "phase-12-protokoll-pruefen",
+  "titel": "Protokoll (Pruefen): tamper-evidente Ketten-Verifikation protokoll_pruefen, Mutilation faellt benannt auf (GoBD Rz. 107)",
+  "vorlage": null,
+  "funktionen": [
+    {
+      "name": "protokoll_pruefen",
+      "datei": "R/protokoll.R",
+      "zweck": "Tamper-evidente Verifikation der Hash-Kette OHNE LLM (GoBD Rz. 107-Anschluss: lueckenlose, nachvollziehbare Protokollfolge). protokoll_pruefen(protokoll_pfad) liest saemtliche JSONL-Zeilen und liefert invisible(TRUE) oder stop() mit BENANNTEM Befund (Zeilennummer plus Feldname — Rz.-152-Pruefbarkeit heisst benennbare Befunde, Stil wie manifest_validieren in R/manifest.R). Pruefungen je Zeile i (1-basiert): seq identical i (sonst 'Zeile <i>, seq'); typ in der zulaessigen Sechser-Menge import/lauf/kontrolle/export/finalisierung/korrektur (sonst 'Zeile <i>, typ'); zeitstempel nach ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$ (sonst 'Zeile <i>, zeitstempel'); user nicht leerer String (sonst 'Zeile <i>, user'); VERKETTUNG vorheriger_hash identical (i == 1 ? strrep('0', 64) : hash von Zeile i-1) (sonst 'Zeile <i>, verkettung'); HASH-REKONSTRUKTION ueber .protokoll_hash aus phase-12-protokoll-hash: .protokoll_hash(seq, typ, zeitstempel, user, daten, vorheriger_hash) nachrechnen und identical mit dem gespeicherten hash verlangen (sonst 'Zeile <i>, hash') — die kanonische Formel steht allein in .protokoll_hash (eine Wahrheit pro Fakt), pruefen ruft sie auf statt sie zu duplizieren. Iteration bricht bei der ERSTEN verletzten Zeile ab. Datei existiert nicht -> stop() mit Pfad im Text; existierende Datei mit 0 Zeilen -> stop() ('Protokoll leer'). Weil der Hash JEDES Feld (seq/typ/zeitstempel/user/daten/vorheriger_hash) abdeckt, macht jede nachtraegliche Aenderung an einem Ereignis die Kette an genau dieser Stelle nachweisbar — inklusive der Rueckwirkung auf den Nachfolger, dessen vorheriger_hash dann nicht mehr zum (veraenderten) hash der Vorgaengerzeile passt. KEIN RNG im Pfad. Engine-unabhaengig (engine_funktionen leer); beruehrt WEDER kernel/ NOCH R/manifest.R NOCH R/manifest_anbindung.R NOCH eine der neun test_manifest*-Dateien (unantastbarer Bestand) — HANGT protokoll_pruefen an R/protokoll.R an (Datei aus den Vorgaengerphasen mit .protokoll_hash und protokoll_anhaengen). SCHIRM-LOS nach Praezedenz phase-12-runmanifest-kern (menue_wert null, reiter [], kennzahlen []); die EMISSION der Ereignisse in die Lauf-Pfade folgt in phase-13.",
+      "engine_funktionen": []
+    }
+  ],
+  "tests": [
+    {
+      "datei": "tests/test_protokoll_pruefen.R",
+      "art": "testthat",
+      "rot_zuerst": true,
+      "prueft": "Spezifikation des Verifiers, rot zuerst (ungeschuetztes source() von R/protokoll.R am Kopf GELINGT, denn die Datei existiert bereits aus den Vorgaengerphasen (.protokoll_hash + protokoll_anhaengen), aber protokoll_pruefen ist dort NICHT definiert -> die Aufrufe fehler -> rot; kein skip, kein succeed; die gueltigen Protokolle werden via protokoll_anhaengen gebaut, damit ein realer verketteter Stand vorliegt, kleine Laufzeit, keine Tier-1-Literale, kein MC, keine Engine, keine Fixture-Mappe): (1) GUELTIGES PROTOKOLL: protokoll_pruefen auf ein via protokoll_anhaengen gebautes Drei-Ereignis-Protokoll (import/lauf/kontrolle, injizierte UTC-zeiten 08/09/10 Uhr) -> isTRUE (invisible TRUE, kein Fehler); auch ein Protokoll mit ALLEN SECHS Ereignistypen (import/lauf/kontrolle/export/finalisierung/korrektur, je ein character-/logical-/numerischer daten-Wert) -> isTRUE (Schema-Abdeckung des gesamten Lebenszyklus — aus phase-12-protokoll-anhaengen bekannt anhaengbar, hier verifizierbar). (2) TAMPER-EVIDENCE / MUTILATION je von DEMSELBEN gueltigen Drei-Ereignis-Protokoll (via protokoll_anhaengen gebaut, Zeilen JSON-geparst, EINE Feldmutatio OHNE Neu-Hash zurueckgeschrieben ueber writeLines der neu serialisierten JSON-Zeilen via jsonlite::toJSON(auto_unbox = TRUE), sodass das_fixture die 'wahren' Hashes traegt und nur das eine Feld kaputt ist): daten von Zeile 2 veraendert (run_id 'run-...' -> 'run-Y') -> protokoll_pruefen wirft stop() und der Text nennt 'Zeile 2'; hash[2] auf einen ANDEREN 64-Hex gesetzt -> Fehler nennt Zeile 2 (hash) UND die Verkettung zu Zeile 3 ist gebrochen; vorheriger_hash[2] veraendert -> Fehler nennt Zeile 2 (verkettung); seq der Zeile 3 auf 2L gesetzt -> Fehler nennt Zeile 3 (seq). Jede Mutatio darf NICHT still durchgehen (Lehre: succeed in Fallback ist unsichtbares Immer-Gruen — jede Funktion assertet ihre Semantik oder wirft benannt). (3) FEHLERFAELLE: protokoll_pruefen auf nicht existierende Datei -> Fehler mit Pfad im Text; protokoll_pruefen auf existierender LEERER Datei -> Fehler ('Protokoll leer'); RNG-Waechter: .Random.seed vor/nach pruefen unveraendert (kein RNG im GoBD-Pfad). BESTANDSSCHUTZ: protokoll_pruefen veraendert weder R/manifest.R noch R/manifest_anbindung.R noch eine der neun test_manifest*-Dateien."
+    }
+  ],
+  "anker": {
+    "tier1_unveraendert": true,
+    "phasen_anker": [
+      {
+        "kennzahl": "protokoll_pruefen: gueltiges Protokoll akzeptiert, daten-Mutilation faellt benannt ('Zeile 2') auf",
+        "kriterium": "Der Verifier akzeptiert ein via protokoll_anhaengen gebautes gueltiges Protokoll (invisible TRUE) und ZERREISST bei einer daten-Mutatio ohne Neu-Hash benannt ('Zeile 2' im Fehlertext); der GoBD-Pfad verbraucht keinen RNG. Toleranz 0 (Verifikation ist eine Ja/Nein-Entscheidung); der Pruefausdruck versorgt sich selbst (frisches tempdir-Protokoll via protokoll_anhaengen, dann Mutilation) — Kontext: R/protokoll.R gesourct (.protokoll_hash + protokoll_anhaengen aus den Vorgaengerphasen PLUS protokoll_pruefen; zusaetzlich kernel/, R/scenario.R wie in den Nachbar-Handoffs geladen, hier ungenutzt).",
+        "pruefung": "local({ p <- file.path(tempdir(), \"protokoll-anker-pruefen.jsonl\"); unlink(p); z1 <- as.POSIXct(\"2026-07-09 08:00:00\", tz = \"UTC\"); z2 <- as.POSIXct(\"2026-07-09 09:00:00\", tz = \"UTC\"); z3 <- as.POSIXct(\"2026-07-09 10:00:00\", tz = \"UTC\"); protokoll_anhaengen(p, \"import\", list(name = \"M.xlsx\", menge = -0.1), zeit = z1, user = \"anker\"); protokoll_anhaengen(p, \"lauf\", list(run_id = \"run-20260709T080000Z-abcd1234\"), zeit = z2, user = \"anker\"); protokoll_anhaengen(p, \"kontrolle\", list(kontrolle = \"anker_plan_tiefpunkt\", bestanden = TRUE), zeit = z3, user = \"anker\"); ok <- isTRUE(tryCatch(protokoll_pruefen(p), error = function(e) FALSE)); lines <- readLines(p); ev <- lapply(lines, function(l) jsonlite::fromJSON(l)); ev[[2]]$daten$run_id <- \"TAMPER\"; tamp <- vapply(ev, function(x) jsonlite::toJSON(x, auto_unbox = TRUE), character(1)); writeLines(tamp, p2 <- file.path(tempdir(), \"protokoll-anker-pruefen-tamp.jsonl\")); msg <- conditionMessage(tryCatch(protokoll_pruefen(p2), error = function(e) e)); rejects <- inherits(tryCatch(protokoll_pruefen(p2), error = function(e) e), \"error\"); rejects_named <- isTRUE(grepl(\"Zeile 2\", msg)); unlink(c(p, p2)); ok && rejects && rejects_named })",
+        "toleranz": 0,
+        "toleranz_bezug": "absolut"
+      }
+    ]
+  },
+  "schirm": {
+    "menue_wert": null,
+    "reiter": [],
+    "kennzahlen": []
+  }
+}

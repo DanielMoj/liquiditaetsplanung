@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "phase": "phase-06-monate",
+  "titel": "Endbestand je Monat",
+  "vorlage": "legacy/05_simulation.R",
+  "funktionen": [
+    {
+      "name": "phase_sim_monate",
+      "datei": "R/phase_sim_monate.R",
+      "zweck": "Projiziert das Simulationsergebnis phase_simulation(sc) auf die Endbestand-Tabelle je Monat und gibt ein Ergebnisobjekt zurueck statt in die Konsole zu drucken: table (data.frame mit je Monat M1..MH den numerischen Spalten P05, P50, P95 sowie P_unter als Anteil in [0,1]), fan (5xH, durchgereicht), P_under (Vektor je Monat, durchgereicht) und H (metrics$H). Ruft den DAG-cached Wrapper phase_simulation(sc) auf und uebernimmt dessen fan/P_under — keine zweite Monte-Carlo, keine Kernel-Aenderung. Die app-Seite formatiert EUR ueber fmt() und P_unter via sprintf; das Ergebnisobjekt selbst bleibt numerisch (für Tests/Anker).",
+      "engine_funktionen": []
+    }
+  ],
+  "tests": [
+    {
+      "datei": "tests/test_phase_sim_monate.R",
+      "art": "testthat",
+      "rot_zuerst": true,
+      "prueft": "Treue der Monats-Tabelle: P05/P50/P95 je Monat == aus out$fan bzw. unabhaengig aus B (apply(out$B, 2, quantile, probs=c(.05,.50,.95))) nachgerechnete Monatsquantile (faengt vertauschte Etiketten), P_unter je Monat == colMeans(out$B < mindestreserve) mit Schwelle aus dem Modell, Quantil-Monotonie je Tabellenzeile (P05 <= P50 <= P95), Tabellen-Struktur (H Zeilen, Spalten Monat/P05/P50/P95/P_unter, P_unter in [0,1]), keine zweite MC (Ergebnis ist reine Projektion von phase_simulation), Zurueckweisung von Nicht-Szenarien."
+    }
+  ],
+  "anker": {
+    "tier1_unveraendert": true,
+    "phasen_anker": [
+      {
+        "kennzahl": "table$P05/P50/P95 == fan",
+        "kriterium": "Selbstkonsistenz der Projektion: die P05/P50/P95-Spalten der Monats-Tabelle entsprechen genau den fan-Zeilen (5%/50%/95%) des Simulationsergebnisses — kein Etikettentausch, keine falsche Quantil-Zuordnung —, je Zeile ist P05 <= P50 <= P95 (Monotonie), und die Tabelle hat genau H Zeilen.",
+        "pruefung": "local({ H <- out$H; mono <- TRUE; for (i in seq_len(H)) mono <- mono && (out$table$P05[i] <= out$table$P50[i] && out$table$P50[i] <= out$table$P95[i]); isTRUE(all.equal(unname(out$table$P05), unname(out$fan[\"5%\", ]), tolerance = 1e-9)) && isTRUE(all.equal(unname(out$table$P50), unname(out$fan[\"50%\", ]), tolerance = 1e-9)) && isTRUE(all.equal(unname(out$table$P95), unname(out$fan[\"95%\", ]), tolerance = 1e-9)) && isTRUE(all.equal(unname(out$table$P_unter), unname(out$P_under), tolerance = 1e-12)) && nrow(out$table) == H && isTRUE(mono) })",
+        "toleranz": 1e-09,
+        "toleranz_bezug": "absolut"
+      }
+    ]
+  },
+  "schirm": {
+    "menue_wert": "sim_monate",
+    "reiter": [
+      {
+        "titel": "Endbestand je Monat",
+        "outputs": [
+          { "output_id": "sim_monate_tbl", "typ": "tableOutput", "inhalt": "Je Monat M1..MH: P05, P50, P95 (EUR ueber fmt()) und P(unter Mindestreserve) in Prozent (sprintf %.0f%%); numerische Quelle aus phase_simulation(sc), formatiert im Render." }
+        ]
+      }
+    ],
+    "kennzahlen": []
+  }
+}

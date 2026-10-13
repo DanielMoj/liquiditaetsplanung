@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "phase": "phase-10-ui",
+  "titel": "Neues Mandat (Sidebar)",
+  "vorlage": null,
+  "funktionen": [
+    {
+      "name": "new_mandate",
+      "datei": "R/new_mandate.R",
+      "zweck": "KEINE neue R-Funktion — die Einheit bindet die BESTEHENDE, in phase-10-generator spezifizierte Funktion new_mandate (R/new_mandate.R; committete Spezifikation tests/test_new_mandate.R bleibt unveraendert) an die Sidebar. SCHEMA-ENTSCHEIDUNG (dokumentiert): funktionen verlangt minItems 1 — darum fuehrt dieser Eintrag den HANDLER-VERTRAG als zweck unter dem Namen der bestehenden Funktion; datei bleibt R/new_mandate.R, der Eintrag fordert dort KEINE Aenderung. Handler-Vertrag (Runde I, app/app.R): in der Sidebar DIREKT UNTER dem Export-Block ('Datei -> Export') ein Block 'Datei -> Neues Mandat' als div mit fester DOM-ID new-mandate; darin (1) downloadButton new_mandate_btn mit Beschriftung 'Leere Mandatsmappe (.xlsx)', dessen downloadHandler im content GENAU new_mandate(file) ruft — keine Session-Objekte, keine Simulation, kein Worker (Mappen-Schreiben ist leichtgewichtig, Praezedenz Export-Handler); filename endet auf .xlsx und enthaelt 'Mandant', deterministisch bis auf ein optionales Datum im DATEINAMEN (nie im Inhalt — der Zellinhalt bleibt der deterministische new_mandate-Vertrag); (2) eine kompakte Vier-Farb-Legende in Anleitungs-Reihenfolge als vier Chips mit Inline-Style-Hintergruenden EXAKT FFFF00 (gelb), DDEBF7 (blau), D9D9D9 (grau), EDE7DD (Kontext/beige) und je Chip dem WOERTLICHEN Kurztext aus docs/Anleitung_neuer_Mandant.md Abschnitt 2 (Bedeutungs-Spalte vor der Klammer): 'Eingabe, die du setzt' / 'Pflichtdaten, beobachtet/strukturell' / 'von der Engine erzeugt oder strukturell fix' / 'reiner Kontext, von der Engine nicht gelesen'; der Kurztext eines Chips steht ZWISCHEN seinem Farbcode und dem des naechsten Chips (segmentweise pruefbar — so beweist die Spezifikation, dass der gelbe Chip nicht den blauen Text traegt). VORLAGEN-ENTSCHEIDUNG (dokumentiert): die fachliche Vorlage der Einheit ist docs/Anleitung_neuer_Mandant.md (Vier-Farb-Semantik und Kurztexte); das Schema laesst im Feld vorlage nur legacy/*.R|py oder null zu — darum vorlage null und die Vorlage hier gefuehrt. SCHIRM-DARSTELLUNG: schirm-los (menue_wert null, reiter leer; Praezedenz phase-09-xlsx/docx/pdf) — kein Eintrag im PHASEN-Vektor, kein nav_panel; pruefbares Element ist allein die kennzahlen-DOM-ID new-mandate, der Container des downloadButton plus Legende.",
+      "engine_funktionen": []
+    }
+  ],
+  "tests": [
+    {
+      "datei": "tests/test_new_mandate_ui.R",
+      "art": "testthat",
+      "rot_zuerst": true,
+      "prueft": "Bindungs- und Struktur-Orakel der Sidebar-Anbindung (rot zuerst: weder existiert das div new-mandate im UI noch der Output new_mandate_btn im Server — Struktur-Check und Handler-Abruf fallen; kein skip, kein succeed, keine Anker-Literale, keine Tier-1-Werte, kein Browser, EINE Mappen-Erzeugung): app/app.R in-Process gesourct (Muster test_export_docx_ui.R inkl. Daemon-Hygiene auch im Fehlerpfad). (a) Download-Handler-Orakel via shiny::testServer OHNE Stubs (der Vertrag verbietet Session-Objekte im Handler): ABRUF output$new_mandate_btn liefert den geschriebenen Pfad; drei billige Vertragsproben Generat GEGEN die eingefrorene Referenz fixtures/Mandant_NEU.xlsx (openxlsx2-Ruecklesung, keine eigenen Wert-Literale): Blattliste identical (Reihenfolge inklusive), Z1-Titel von Blatt 01_Positionen identical, Steuersatz-Zelle 08_Steuern!B9 identical (KEIN voller Zellabgleich — der lebt in tests/test_new_mandate.R; hier zaehlt die BINDUNG Handler -> new_mandate); Kreuz-Waechter mit Label: das Generat traegt 00_Anleitung und damit NICHT die Blattliste eines export_xlsx-Outputs — ein Handler, der die falsche Funktion ruft, faellt rot; Regime-Waechter als harte Fails (Referenzdatei liegt vor, Referenz traegt 00_Anleitung, Referenz-B9 numerisch, Referenz-A1 nicht NA). (b) Struktur: Sidebar-HTML aus der ui-Definition der App-Umgebung gerendert (htmltools::renderTags, kein Browser); div id new-mandate vorhanden, downloadButton new_mandate_btn mit woertlicher Beschriftung 'Leere Mandatsmappe (.xlsx)', ALLE VIER Farbcodes als background-Inline-Styles im Block, Chips in Anleitungs-Reihenfolge (Positions-Check), je Chip der woertliche Anleitungs-Kurztext in SEINEM Segment (vom eigenen Farbcode bis zum naechsten); Kreuz-Check: das gelbe Segment traegt nicht den blauen Kurztext. (c) filename-Vertrag: basename endet auf .xlsx und enthaelt 'Mandant' (bewusst kein gepinnter Voll-Name — optionales Datum im Dateinamen erlaubt)."
+    }
+  ],
+  "anker": {
+    "tier1_unveraendert": true,
+    "phasen_anker": [
+      {
+        "kennzahl": "blaetter",
+        "kriterium": "Bindungs-Treue der Sidebar-Anbindung: der Abruf des downloadHandlers new_mandate_btn im testServer schreibt eine Mappe, deren openxlsx2-Blattliste identical zur eingefrorenen Python-Referenz fixtures/Mandant_NEU.xlsx ist (inklusive 00_Anleitung — die Blattliste eines export_xlsx-Outputs truege sie nicht; ein an die falsche Funktion gebundener Handler faellt), und deren Download-Dateiname auf .xlsx endet und 'Mandant' traegt.",
+        "pruefung": "local({ app_env <- new.env(parent = globalenv()); source(file.path(\"app\", \"app.R\"), local = app_env, chdir = TRUE); app_env$.nm_ref_blaetter <- unname(openxlsx2::wb_get_sheet_names(openxlsx2::wb_load(file.path(\"fixtures\", \"Mandant_NEU.xlsx\")))); ok <- tryCatch({ shiny::testServer(app_env$server, { session$setInputs(phase = \"forecast\"); pfad <- output$new_mandate_btn; stopifnot(file.exists(pfad), grepl(\"\\\\.xlsx$\", basename(pfad)), grepl(\"Mandant\", basename(pfad), fixed = TRUE)); blatt <- unname(openxlsx2::wb_get_sheet_names(openxlsx2::wb_load(pfad))); stopifnot(\"00_Anleitung\" %in% .nm_ref_blaetter, identical(blatt, .nm_ref_blaetter)) }); TRUE }, error = function(e) FALSE); if (\"mirai\" %in% loadedNamespaces()) try(mirai::daemons(0), silent = TRUE); ok })",
+        "toleranz": 0,
+        "toleranz_bezug": "absolut"
+      }
+    ]
+  },
+  "schirm": {
+    "menue_wert": null,
+    "reiter": [],
+    "kennzahlen": [
+      {
+        "dom_id": "new-mandate",
+        "kennzahl": "Sidebar-Block 'Datei -> Neues Mandat' — Container des downloadButton new_mandate_btn plus Vier-Farb-Legende; pruefbares DOM-Element, kein Zahlwert",
+        "quelle": "downloadHandler -> new_mandate(file)$pfad",
+        "format": "text"
+      }
+    ]
+  }
+}

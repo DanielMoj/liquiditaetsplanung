@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "phase": "phase-09-pdf",
+  "titel": "Export pdf",
+  "vorlage": null,
+  "funktionen": [
+    {
+      "name": "export_pdf",
+      "datei": "R/export.R",
+      "zweck": "Schreibt eine BENANNTE Liste von Phasen-Ergebnisobjekten als pdf-Bericht ueber das Quarto-CLI mit dem typst-Format (LaTeX-frei; typst ist im Quarto-CLI gebuendelt) und gibt list(pfad = <geschriebener Pfad>, abschnitte = <character der Abschnittsnamen in Schreibreihenfolge>) zurueck. Je Eintrag ein ABSCHNITT in EINGABEREIHENFOLGE: eine Ueberschrift der Ebene 1 ('# <name>' im generierten qmd), deren Text EXAKT der Vertragsname ist (dieselben Namen wie die xlsx-Blaetter/docx-Abschnitte), gefolgt von GENAU EINER Pipe-Tabelle. Die Tabellenformen kommen aus dem GEMEINSAMEN Block-Bauer export_bloecke_bauen (forecast expandiert zu forecast + forecast_kpis; sim_monate table und vergleich tabelle unveraendert; sim_deckung/varianzzerlegung Key/Wert mit den vertraglich asymmetrischen Reihenfolgen seed-VOR-S bzw. S-VOR-seed, insO 0/1); die Zellen laufen durch die GEMEINSAME Zellregel export_zellen_als_text (as.character je Spalte — R-eigene 15-Stellen-Darstellung, logicals TRUE/FALSE), Pipe-Zeichen in Zellen werden escaped. LAYOUT-REGIME (gepinnte Entscheidung, Teil des Vertrags, weil die Ruecklese-Orakel zeilenbasiert sind): format typst mit margin x=1cm/y=1.2cm und fontsize 9pt — unter diesem Regime brechen DATENZEILEN nicht um (empirisch verprobt bis 13 Spalten im vergleich und 17-Zeichen-Zellen der Fixture-Naht; nur die Kopfzeile der 13-Spalten-Tabelle darf wickeln und wird deshalb nicht zeilengepinnt). KEIN Datum, kein Zeitstempel, kein Autor im Dokumentinhalt — pdftools::pdf_text zweier Renders derselben Eingabe ist identisch (Datei-Bytes/PDF-Metadaten duerfen abweichen). Ruecklese-Eigenheit (im Orakel normalisiert): typst setzt das Minuszeichen als U+2212, nicht als ASCII-Hyphen. Arbeitsweise: qmd deterministisch in ein Temp-Arbeitsverzeichnis schreiben, Quarto-CLI via quarto_bin_finden() mit system2 rendern (--quiet), erzeugtes pdf nach pfad kopieren; Fehler des Renders als benannter stop mit Log-Auszug. abschnitte ist identical zu export_xlsx(...)$blaetter derselben Eingabe (Symmetrie ueber den gemeinsamen Bauer); Fehler der Eingabevalidierung identisch zu xlsx/docx (geworfen vom Bauer): unbekannter Name im Fehlertext, leere Liste, unbenannte Liste. KEIN Legacy-Vorbild (vorlage: null wie die Schwester-Einheiten); Zielort R/export.R laut ARCHITECTURE.md. App-Seite (Runde I): downloadButton export_pdf_btn in einem Container mit fester DOM-ID export-pdf im BESTEHENDEN Sidebar-Bereich 'Datei -> Export' (unter dem docx-Button); der downloadHandler nutzt den BESTEHENDEN Sammel-Reactive export_ergebnisse, filename liquiditaetsplanung_export.pdf, validate-Hinweis 'Erst rechnen, dann exportieren.' bei leerer Sammlung; der Render (~4 s, verprobt) bleibt im Handler — kein Worker, Praezedenz xlsx/docx. Schirm-Darstellung: SCHIRM-LOS (menue_wert null, leeres reiter-Array; Praezedenz phase-09-xlsx/docx); pruefbares Element allein die kennzahlen-DOM-ID export-pdf.",
+      "engine_funktionen": []
+    },
+    {
+      "name": "quarto_bin_finden",
+      "datei": "R/export.R",
+      "zweck": "Loest das Quarto-CLI-Binary env-unabhaengig auf — noetig, weil laufende Prozessbaeume nach einer frischen Quarto-Installation den alten PATH erben (beobachtet 2026-07-07: CLI unter C:/Program Files/Quarto installiert, PATH und quarto::quarto_path() leer). Kette: QUARTO_PATH-Umgebungsvariable -> quarto::quarto_path() (tryCatch) -> Sys.which('quarto') -> Windows-Standardpfade (C:/Program Files/Quarto/bin/quarto.exe, LOCALAPPDATA/Programs/Quarto/bin/quarto.exe) -> benannter stop mit Installationshinweis. Dieselbe Kette prueft tests/deps.R als Sichtpruefung (a9664ab).",
+      "engine_funktionen": []
+    },
+    {
+      "name": "export_zellen_als_text",
+      "datei": "R/export.R",
+      "zweck": "HERAUSGEZOGENE gemeinsame Zell-Text-Regel aus export_docx (dort bisher der lokale Helfer als_text): jede Spalte eines Blocks per as.character (Zahlen in der R-eigenen 15-Stellen-Darstellung, logicals TRUE/FALSE). Von export_docx UND export_pdf genutzt — EINE Regel statt zwei driftfaehiger Kopien; Verhalten von export_docx unveraendert (die committete Spec tests/test_export_docx.R bleibt der Beweis).",
+      "engine_funktionen": []
+    },
+    {
+      "name": "export_docx",
+      "datei": "R/export.R",
+      "zweck": "BESTAND, nur intern umgestellt: nutzt die herausgezogene gemeinsame Zellregel export_zellen_als_text statt des lokalen als_text-Helfers; Signatur, Rueckgabe, Abschnittsformen und Fehlerverhalten identisch.",
+      "engine_funktionen": []
+    }
+  ],
+  "tests": [
+    {
+      "datei": "tests/test_export_pdf.R",
+      "art": "testthat",
+      "rot_zuerst": true,
+      "prueft": "Ruecklese-Treue und Vertrag des pdf-Exports (rot zuerst: export_pdf existiert noch nicht — jeder Test faellt am fehlenden Symbol; R/export.R selbst laesst sich sourcen). Leseform: pdftools::pdf_text, Zeilen ueber Seiten hinweg, U+2212 zu ASCII-Minus normalisiert, JEDE Zeile whitespace-gestript — eine Datenzeile der Tabelle wird so zur exakten Konkatenation ihrer Zellen (pinnt Paarung UND Spaltenreihenfolge in EINEM identical-Match; unter dem gepinnten Layout-Regime brechen Datenzeilen nicht um, empirisch verprobt). Geprueft an fuenf frischen, paarweise unverwechselbaren Stubs (Erwartungszeilen als paste0 EIGENER String-Literale, nicht aus den Stubs abgeleitet): (1) Rueckgabe-Vertrag — pfad existiert, traegt die %PDF-Magic, abschnitte identical zur Eingabereihenfolge (forecast doppelt; Eingabeliste bewusst anders gemischt als die Schwester-Specs) und die Ueberschriften erscheinen als exakte gestripte Zeilen in genau dieser Reihenfolge; (2) je Block Datenzeilen exakt — Key/Wert-Zeilen kennzahl+wert konkateniert (insO-Zeile exakt 'insO_erfuellt1'), forecast-Zeilen Position+M1..M3, monate- und vergleich-Zeilen ueber alle Spalten inkl. TRUE/FALSE-Rundreise; Kopfzeilen-Pins nur fuer schmale Tabellen (kennzahlwert, MonatP05P50P95P_unter, PositionM1M2M3) — die 13-Spalten-Kopfzeile des vergleich darf wickeln und bleibt ungepinnt; (3) Asymmetrie-Ordnung — Zeilenposition von seed<wert> VOR S<wert> im deckung-Abschnitt und S<wert> VOR seed<wert> im varianz-Abschnitt; (4) Koeder (guv-Wert, T_*-Werte, phase/scenario-Etiketten) erscheinen in KEINER Zeile; (5) Kreuz-Check deckung <-> varianz — keine Zeile traegt eine Kennzahl des einen mit dem Wert des anderen; (6) Symmetrie — abschnitte identical zu export_xlsx(...)$blaetter derselben Eingabe; (7) Determinismus — pdf_text zweier Renders derselben Eingabe identical (Datei-Bytes duerfen abweichen); (8) Fixture-Naht — ein memoisierter echter phase_sim_monate-Lauf (paths = 12, Seed 2026), die erwarteten Zeilen werden aus as.character der echten table-Spalten gebaut und EXAKT gematcht (die Zellregel macht die Ruecklesung stringgenau, keine Toleranz noetig); (9) Fehlerfaelle — unbekannter Name (im Fehlertext, auch neben gueltigen), leere Liste, unbenannte Liste."
+    },
+    {
+      "datei": "tests/test_export_pdf_ui.R",
+      "art": "testthat",
+      "rot_zuerst": true,
+      "prueft": "Verdrahtungs- und Bindungs-Orakel DIREKT in Runde T (Praezedenz phase-09-docx; Lehre aus xlsx-M4): app/app.R in-Process gesourct, shiny::testServer; vier paarweise unverwechselbare Quell-Stubs (varianz mit vollem 12-Key-Vertrag) + eigene Modell-Schwelle, Regime-Waechter als harte Fails (trough-Vektor nur im sim-Stub, P_breach extern nicht degeneriert, kk_limit-Wert in keinem Stub-Zahlenblock). ABRUF output$export_pdf_btn liefert den vom downloadHandler geschriebenen Pfad (basename EXAKT liquiditaetsplanung_export.pdf, %PDF-Magic); Ruecklesung ueber die gestripte Zeilenform: Abschnittsfolge = Sammel-Reihenfolge (forecast expandiert), sim_deckung-Zeilen EXTERN aus den sim-Stub-Literalen gebaut (P_breach = mean(trough < -kk) als exakter as.character-String, trough_median, kk_limit = rv-Schwelle), je Quelle eine blockeigene Datenzeile als Bindungsbeweis; NULL-Teilprobe (sim weg -> sim_-Abschnitte weg, uebrige Zeilen unveraendert); Leerpfad: alle Quellen NULL -> validate-Fehler (Klasse shiny.silent.error). Rot zuerst: der Output export_pdf_btn existiert im Server noch nicht — der Abruf faellt als Fehler."
+    }
+  ],
+  "anker": {
+    "tier1_unveraendert": true,
+    "phasen_anker": [
+      {
+        "kennzahl": "abschnitte",
+        "kriterium": "Ruecklese-Treue des pdf-Exports: die Ebene-1-Ueberschrift des geschriebenen Berichts ist der Eingabename, und die zurueckgelesenen, whitespace-gestripten Datenzeilen (U+2212 normalisiert) sind EXAKT die Konkatenation der as.character-Zellen des Ergebnisobjekts — Kopfzeile wie Datenzeilen stringgenau, Toleranz 0 (kein Formatieren, kein Umsortieren, kein Zeitstempel im Inhalt).",
+        "pruefung": "local({ st <- list(sim_monate = list(table = data.frame(Monat = c(\"M1\", \"M2\"), P05 = c(-4.5, -3.25), P50 = c(0.85, 1.35), P95 = c(5.25, 6.75), P_unter = c(0.3, 0.15), stringsAsFactors = FALSE))); tf <- tempfile(fileext = \".pdf\"); r <- export_pdf(st, tf); tx <- pdftools::pdf_text(tf); z <- unlist(strsplit(paste(tx, collapse = \"\\n\"), \"\\n\")); z <- gsub(\"\\u2212\", \"-\", z); z <- gsub(\"[[:space:]]+\", \"\", z); z <- z[nzchar(z)]; file.exists(r$pfad) && identical(r$pfad, tf) && identical(r$abschnitte, names(st)) && identical(rawToChar(readBin(tf, \"raw\", 4L)), \"%PDF\") && any(z == \"sim_monate\") && any(z == \"MonatP05P50P95P_unter\") && any(z == \"M1-4.50.855.250.3\") && any(z == \"M2-3.251.356.750.15\") })",
+        "toleranz": 0,
+        "toleranz_bezug": "absolut"
+      }
+    ]
+  },
+  "schirm": {
+    "menue_wert": null,
+    "reiter": [],
+    "kennzahlen": [
+      {
+        "dom_id": "export-pdf",
+        "kennzahl": "Download-Element 'Datei -> Export' (pdf) — Container des downloadButton export_pdf_btn; pruefbares DOM-Element, kein Zahlwert",
+        "quelle": "downloadHandler -> export_pdf(ergebnisse, pfad)$pfad",
+        "format": "text"
+      }
+    ]
+  }
+}

@@ -1,0 +1,97 @@
+{
+  "schema_version": 1,
+  "phase": "phase-06-fan",
+  "titel": "Simulation",
+  "vorlage": "legacy/05_simulation.R",
+  "funktionen": [
+    {
+      "name": "phase_simulation",
+      "datei": "R/phase_simulation.R",
+      "zweck": "Rechnet die genestete Monte-Carlo ueber die eingefrorene Engine (aeussere Schicht: korrelierte epistemische Jahreswerte je Treiber via draw_epistemic_correlated, Seed 2026; innere Schicht: monatliches multiplikatives Rauschen je Treiber-Basis mit sigma aus spec cv, gemeinsamer Monatsschock fuer Menge/Material; jeder Pfad laeuft durch run_model) und gibt ein Ergebnisobjekt zurueck statt in die Konsole zu drucken: B (SxH Endbestand-Matrix), Theta (Sxk epistemische Ziehungen), fan (5xH Quantilbaender P5/P25/P50/P75/P95), P_under (Vektor je Monat), trough (Vektor je Pfad), metrics (S, seed, H, trough_median, trough_p05, trough_p95, P_breach, P_breach_pct, P_solvent, P_solvent_pct, plan_trough), spec, R, plot_path, endbestand_path (gesicherte endbestand.rds, Eingabe Phase 7) und diagnostics (n_treiber, deterministisch, stuetzen_ok). Der volstaendige out wird in dieser Phase berechnet und ist der Vertrag fuer die Schwester-Phasen phase-06-monate (Monats-Tabelle) und phase-06-deckung (Solvenz-Verdict), die out unverfaelscht projizieren. SELBSTENTHALTEN wie phase_kopula: spec (build_dists mit estimate_cv_harmonic-CV, dieselbe dokumentierte Basis-Allokation wie Phase 4) und R (make_psd aus Blatt 07, derselbe Engine-Pfad wie Phase 5) werden selbst gerechnet — bau- und testbar ohne Vorphase. Synchron und worker-sicher (kein Grafikgeraet, keine Globals): die schwere MC laeuft im App-Modul im mirai/future-Worker mit Fortschritt + Abbrechen, nie im UI-Thread (CLAUDE.md / IMPLEMENTATION_RULES Nebenlaeufigkeit).",
+      "engine_funktionen": ["estimate_cv_harmonic", "build_dists", "make_psd", "draw_epistemic_correlated", "run_model"]
+    },
+    {
+      "name": ".plot_simulation",
+      "datei": "R/phase_simulation.R",
+      "zweck": "Zeichnet den Endbestand-Fan (P5-P95- und P25-P75-Baender, Medianlinie, Mindestreserve- und KK-Limit-Linien) sowie die Unterdeckungs-Wahrscheinlichkeit je Monat als PNG in den Szenario-Workspace; gibt den Pfad zurueck oder NA, wenn kein Grafikgeraet verfuegbar ist (sauberer Headless-Fallback — nie ein harter Abbruch).",
+      "engine_funktionen": []
+    }
+  ],
+  "tests": [
+    {
+      "datei": "tests/test_phase_sim.R",
+      "art": "testthat",
+      "rot_zuerst": true,
+      "prueft": "Treue/Selbstkonsistenz der abgeleiteten Metriken (out$fan == apply(out$B, 2, quantile, probs=c(.05,.25,.5,.75,.95)) unabhaengig aus B nachgerechnet, out$trough == apply(out$B, 1, min), out$P_under == colMeans(out$B < mindestreserve) mit Schwelle aus dem Modell, out$metrics$P_breach == mean(out$trough < -kk_limit), out$metrics$P_solvent == 1 - out$metrics$P_breach — faengt vertauschte Quantil-Etiketten und falsche Schwellen), Quantil-Monotonie je Monat (P5<=P25<=P50<=P75<=P95), PERT-Stuetzen-Vertrag der epistemischen Ziehungen (jeder out$Theta[s, d] in [min, max] je Treiber, unabhaengig aus Blatt 06 + CV-Basis rekonstruiert), Determinismus unter set.seed 2026 (erster Treibervektor reproduzierbar — Seed ist Szenario-Schluessel, kein vorzeitiger RNG-Verbrauch), Plan-Tiefpunkt-Treue (deterministische Wirbelsaeule der Fan out$metrics$plan_trough == run_model ohne Rauschen), endbestand.rds-Roundtrip readRDS identisch zu out$B (Eingabe Phase 7), Struktur (B ist SxH, fan ist 5xH, P_under Laenge H, trough Laenge S), Fehlerfaelle: fehlendes Blatt 07_Korrelation -> sauberer benannter Fehler, fehlendes/leeres Blatt 06_Verteilungen -> sauberer benannter Fehler, Plot-Fallback ohne Grafikgeraet (NA, kein harter Abbruch), Zurueckweisung von Nicht-Szenarien."
+    }
+  ],
+  "anker": {
+    "tier1_unveraendert": true,
+    "phasen_anker": [
+      {
+        "kennzahl": "fan",
+        "kriterium": "Selbstkonsistenz + Monotonie der Quantilbaender: out$fan entspricht den unabhaengig aus B nachgerechneten Monatsquantilen, und je Monat sind die Quantile geordnet P5<=P25<=P50<=P75<=P95 — faengt vertauschte Etiketten und eine falsche Quantil-Ableitung.",
+        "pruefung": "local({ q <- apply(out$B, 2, quantile, probs = c(.05,.25,.5,.75,.95)); mono <- all(q[\"5%\",] <= q[\"25%\",] & q[\"25%\",] <= q[\"50%\",] & q[\"50%\",] <= q[\"75%\",] & q[\"75%\",] <= q[\"95%\",]); isTRUE(all.equal(unname(q), unname(out$fan), tolerance = 1e-9)) && isTRUE(mono) })",
+        "toleranz": 1e-09,
+        "toleranz_bezug": "absolut"
+      },
+      {
+        "kennzahl": "trough / P_under / P_breach / P_solvent",
+        "kriterium": "Selbstkonsistenz der Metriken: trough ist das Minimum je Pfad, P_under der Anteil Pfade unter der Mindestreserve je Monat (Schwelle aus dem Modell), P_breach der Anteil Pfade deren Tiefpunkt die KK-Linie reisst, P_solvent == 1 - P_breach — alles unabhaengig aus B und den Modell-Schwellen nachgerechnet.",
+        "pruefung": "local({ m <- load_model(WB); u <- function(x) unname(x); isTRUE(all.equal(u(out$trough), u(apply(out$B, 1, min)), tolerance = 1e-12)) && isTRUE(all.equal(u(out$P_under), u(colMeans(out$B < m$mindestreserve)), tolerance = 1e-12)) && isTRUE(all.equal(u(out$metrics$P_breach), mean(out$trough < -m$kk_limit), tolerance = 1e-12)) && isTRUE(all.equal(out$metrics$P_solvent, 1 - out$metrics$P_breach, tolerance = 1e-12)) })",
+        "toleranz": 1e-12,
+        "toleranz_bezug": "absolut"
+      },
+      {
+        "kennzahl": "Theta in [min,max]",
+        "kriterium": "PERT-Stuetzen-Vertrag der Simulationsziehung: jeder epistemische Jahreswert out$Theta[s, d] liegt im deklarierten Traeger [min, max] je Treiber — die Copula respektiert die Raender. spec unabhaengig aus Blatt 06 und der dokumentierten CV-Basis rekonstruiert (menge = Menge+Menge_Preis-Basis, material = Material-Basis).",
+        "pruefung": "local({ m <- load_model(WB); D <- m$pos$driver; vol <- colSums(m$base[D %in% c(\"menge\",\"menge_preis\"),,drop=FALSE]); mat <- colSums(m$base[D == \"material\",,drop=FALSE]); est <- list(menge = estimate_cv_harmonic(vol), material = estimate_cv_harmonic(mat)); spec <- build_dists(m, est); ok <- TRUE; for (d in names(spec)) { s <- spec[[d]]; ok <- ok && all(out$Theta[, d] >= s$min - 1e-9 & out$Theta[, d] <= s$max + 1e-9) }; isTRUE(ok) })",
+        "toleranz": 1e-09,
+        "toleranz_bezug": "absolut"
+      },
+      {
+        "kennzahl": "Determinismus (Seed 2026)",
+        "kriterium": "Determinismus-Vertrag: set.seed(seed) direkt vor der epistemischen Ziehung (erster RNG-Verbraucher) — der erste simulierte Treibervektor trifft eine frisch gesetzte Ziehung ohne vorzeitigen RNG-Verbrauch. Der Seed ist Teil des Szenario-Schluessels (IMPLEMENTATION_RULES Determinismus: Phase Simulation 2026).",
+        "pruefung": "local({ set.seed(out$metrics$seed); T1 <- draw_epistemic_correlated(out$spec, out$R, out$metrics$S); identical(unname(T1[1L, ]), unname(out$Theta[1L, ])) })",
+        "toleranz": 0,
+        "toleranz_bezug": "absolut"
+      },
+      {
+        "kennzahl": "endbestand_path round-trip",
+        "kriterium": "Artefakt-Vertrag fuer Phase 7 (Varianzzerlegung): die gesicherte endbestand.rds liest sich bit-identisch zur Ergebnis-Matrix out$B und liegt im Szenario-Workspace.",
+        "pruefung": "!is.na(out$endbestand_path) && file.exists(out$endbestand_path) && identical(readRDS(out$endbestand_path), out$B)",
+        "toleranz": 0,
+        "toleranz_bezug": "absolut"
+      },
+      {
+        "kennzahl": "metrics$plan_trough",
+        "kriterium": "Treue der deterministischen Wirbelsaeule: der ohne Rauschen gerechnete Plan-Tiefpunkt des Wrappers (assume = Mode, noise = NULL) ist identisch mit dem direkten Engine-Lauf run_model(load_model(WB))$kpis$trough — die Simulation verbiegt die Tier-1-Planrechnung nicht.",
+        "pruefung": "local({ m <- load_model(WB); isTRUE(all.equal(out$metrics$plan_trough, run_model(m)$kpis$trough, tolerance = 0)) })",
+        "toleranz": 0,
+        "toleranz_bezug": "absolut"
+      }
+    ]
+  },
+  "schirm": {
+    "menue_wert": "sim",
+    "reiter": [
+      {
+        "titel": "Tiefpunkt-Verteilung",
+        "outputs": [
+          { "output_id": "sim_diag", "typ": "uiOutput", "inhalt": "Diagnosezeile: Anzahl Pfade ueber Horizont H Monate, Seed 2026, n Treiber, Badge Determinismus (Seed reproduzierbar), Badge PERT-Stuetzen (Treiber-Zuege in [min,max]), deterministischer Plan-Tiefpunkt (Tier-1); Hinweis die schwere MC laeuft im Hintergrund-Worker (mirai/future), nicht im UI-Thread." },
+          { "output_id": "sim_plot", "typ": "imageOutput", "inhalt": "PNG-Fan-Chart: P5-P95- und P25-P75-Baender sowie Median-Endbestand je Monat mit Mindestreserve- und KK-Limit-Linien; darunter Balken der P(unter Mindestreserve) je Monat." }
+        ]
+      }
+    ],
+    "kennzahlen": [
+      { "dom_id": "sim-s", "kennzahl": "Anzahl Simulationslaeufe (Pfade)", "quelle": "metrics$S", "format": "ganzzahl" },
+      { "dom_id": "sim-seed", "kennzahl": "Seed (Szenario-Schluessel, Determinismus)", "quelle": "metrics$seed", "format": "ganzzahl" },
+      { "dom_id": "sim-horizont", "kennzahl": "Horizont (Monate)", "quelle": "metrics$H", "format": "ganzzahl" },
+      { "dom_id": "sim-treiber", "kennzahl": "Anzahl epistemische Treiber", "quelle": "diagnostics$n_treiber", "format": "ganzzahl" },
+      { "dom_id": "sim-plan-tiefpunkt", "kennzahl": "Deterministischer Plan-Tiefpunkt (EUR, Tier-1)", "quelle": "metrics$plan_trough", "format": "fmt" },
+      { "dom_id": "sim-determinismus", "kennzahl": "Status Determinismus (Seed reproduzierbar)", "quelle": "diagnostics$deterministisch", "format": "badge" },
+      { "dom_id": "sim-stuetzen", "kennzahl": "Status PERT-Stuetzen (Treiber-Zuege in [min,max])", "quelle": "diagnostics$stuetzen_ok", "format": "badge" },
+      { "dom_id": "sim-endbestand-pfad", "kennzahl": "Pfad gesicherte Endbestand-Matrix (endbestand.rds, Eingabe Phase 7)", "quelle": "endbestand_path", "format": "text" }
+    ]
+  }
+}

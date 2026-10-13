@@ -1,0 +1,101 @@
+{
+  "schema_version": 1,
+  "phase": "phase-04-verteilungen",
+  "titel": "Verteilungen",
+  "vorlage": "legacy/03_verteilungen.R",
+  "funktionen": [
+    {
+      "name": "phase_verteilungen",
+      "datei": "R/phase_verteilungen.R",
+      "zweck": "Rechnet ueber die eingefrorene Engine die epistemisch+aleatorisch aufgeteilte Verteilungsspezifikation je Treiber (PERT ueber die Jahresannahme + CV aus Ist-Residuen) und gibt ein Ergebnisobjekt zurueck: spec (Liste je Treiber mit mode/min/max/cv/cv_source), cv_est (die geschätzten CVs fuer menge/material nach dokumentierter Basis-Allokation), table (Treiber, Mode, P5, P50, P95, CV, Quelle), plot_path, spec_path (gesicherte verteilungen_spec.rds fuer Phase 5/6) und diagnostics (n_treiber, historie_monate, cv_belastbar, cv_geschaetzt_n, cv_vorgabe_n, basis_text) statt in die Konsole zu drucken.",
+      "engine_funktionen": ["estimate_cv_harmonic", "build_dists", "qpert"]
+    },
+    {
+      "name": ".plot_verteilungen",
+      "datei": "R/phase_verteilungen.R",
+      "zweck": "Zeichnet die PERT-Histogramme je Treiber sowie das aleatorische Ist-Residuen-Histogramm als PNG in den Szenario-Workspace; gibt den Pfad zurueck oder NA, wenn kein Grafikgeraet verfuegbar ist (sauberer Headless-Fallback).",
+      "engine_funktionen": ["rpert"]
+    }
+  ],
+  "tests": [
+    {
+      "datei": "tests/test_phase_vert.R",
+      "art": "testthat",
+      "rot_zuerst": true,
+      "prueft": "Treue (out$spec ist identisch mit dem direkten build_dists-Lauf; out$cv_est folgt der dokumentierten Basis-Allokation menge = colSums der menge+menge_preis-Positionen, material = colSums der material-Positionen, also m_leb in der Mengen-Basis; mode == assume je Treiber; Spec-Abdeckung: jeder Treiber steht in Blatt 06 und in assume), unabhaengig nachgerechnete aleatorische CV der Menge via harmonischer Saisonregression mit lm.fit (NICHT ueber estimate_cv_harmonic aufgerufen — faengt eine Mutation der Schätzfunktion), PERT-Randvertrag qpert(0)=min und qpert(1)=max je Treiber, Quantil-Monotonie P5<=P50<=P95, spec.rds-Roundtrip readRDS identisch zu out$spec, Fehlerfaelle: fehlendes Blatt 06_Verteilungen -> sauberer Fehler, leeres Blatt ohne Treiber -> sauberer Fehler, Plot-Fallback ohne Grafikgeraet, Zurueckweisung von Nicht-Szenarien."
+    }
+  ],
+  "anker": {
+    "tier1_unveraendert": true,
+    "phasen_anker": [
+      {
+        "kennzahl": "spec",
+        "kriterium": "Treue: die Verteilungsspezifikation des Wrappers ist identisch mit dem direkten Engine-Lauf build_dists(load_model(WB), est) — die UI verbiegt die Spezifikation nicht.",
+        "pruefung": "local({ m <- load_model(WB); D <- m$pos$driver; vol <- colSums(m$base[D %in% c(\"menge\",\"menge_preis\"),,drop=FALSE]); mat <- colSums(m$base[D == \"material\",,drop=FALSE]); est <- list(menge=estimate_cv_harmonic(vol), material=estimate_cv_harmonic(mat)); isTRUE(all.equal(out$spec, build_dists(m, est), tolerance=0)) })",
+        "toleranz": 0,
+        "toleranz_bezug": "absolut"
+      },
+      {
+        "kennzahl": "cv_est$menge",
+        "kriterium": "Unabhaengig nachgerechnete aleatorische CV der Menge: der Wrapper-Wert stimmt mit der veroeffentlichten Formel (harmonische Saisonregression lm.fit auf log(Mengenbasis), sd der Residuen) ueberein — unabhaengig von estimate_cv_harmonic, faengt eine Mutation der Schätzfunktion.",
+        "pruefung": "local({ m <- load_model(WB); D <- m$pos$driver; s <- colSums(m$base[D %in% c(\"menge\",\"menge_preis\"),,drop=FALSE]); n <- length(s); t <- seq_len(n); X <- matrix(1,n,1); for(k in 1:2) X <- cbind(X, sin(2*pi*k*t/12), cos(2*pi*k*t/12)); isTRUE(all.equal(unname(out$cv_est$menge), sd(lm.fit(X, log(s))$residuals), tolerance=1e-9)) })",
+        "toleranz": 1e-09,
+        "toleranz_bezug": "absolut"
+      },
+      {
+        "kennzahl": "spec[[d]] min/max vs qpert",
+        "kriterium": "PERT-Randvertrag der eingefrorenen Engine: die PERT-Inverse trifft ihre erklaerte Trägermenge — qpert(0)=min und qpert(1)=max fuer jeden Treiber.",
+        "pruefung": "isTRUE(all(vapply(names(out$spec), function(d) { s <- out$spec[[d]]; isTRUE(all.equal(qpert(0,s$min,s$mode,s$max), s$min, tolerance=1e-12)) && isTRUE(all.equal(qpert(1,s$min,s$mode,s$max), s$max, tolerance=1e-12)) }, logical(1))))",
+        "toleranz": 1e-12,
+        "toleranz_bezug": "absolut"
+      },
+      {
+        "kennzahl": "spec-Abdeckung + mode==assume",
+        "kriterium": "Engine-Vertrag Spec-Zusammensetzung: jeder Treiber in spec hat eine Annahme im Modell und eine Zeile in Blatt 06_Verteilungen, und sein mode ist genau die Jahresannahme.",
+        "pruefung": "local({ m <- load_model(WB); dr06 <- as.character(m$dists_raw[[1]]); all(names(out$spec) %in% names(m$assume)) && all(names(out$spec) %in% dr06) && isTRUE(all(vapply(names(out$spec), function(d) isTRUE(all.equal(out$spec[[d]]$mode, m$assume[[d]], tolerance=0)), logical(1)))) })",
+        "toleranz": 0,
+        "toleranz_bezug": "absolut"
+      },
+      {
+        "kennzahl": "spec_path round-trip",
+        "kriterium": "Artefakt-Vertrag fuer Phase 5/6: die gesicherte verteilungen_spec.rds liest sich bit-identisch zum Ergebnisobjekt.",
+        "pruefung": "!is.na(out$spec_path) && file.exists(out$spec_path) && identical(readRDS(out$spec_path), out$spec)",
+        "toleranz": 0,
+        "toleranz_bezug": "absolut"
+      }
+    ]
+  },
+  "schirm": {
+    "menue_wert": "vert",
+    "reiter": [
+      {
+        "titel": "Verteilungen je Treiber",
+        "outputs": [
+          { "output_id": "vert_diag", "typ": "uiOutput", "inhalt": "Diagnosezeile: Anzahl Treiber mit Verteilung, Monate Historie, Badge CV-Schaetzung belastbar (>=24 Monate), Anzahl Treiber mit geschaetzter vs. Vorgabe-CV." },
+          { "output_id": "vert_plot", "typ": "imageOutput", "inhalt": "PNG: PERT-Histogramm je Treiber (epistemische Bandbreite der Jahresannahme mit Mode-Markierung) plus aleatorisches Ist-Residuen-Histogramm der Menge." }
+        ]
+      },
+      {
+        "titel": "Treiber-Tabelle",
+        "outputs": [
+          { "output_id": "vert_tbl", "typ": "tableOutput", "inhalt": "Je Treiber: Mode, P5, P50, P95 (epistemisch, PERT), CV_aleat (Prozent) und Quelle (geschaetzt/Vorgabe); Zahlen ueber fmt()." }
+        ]
+      },
+      {
+        "titel": "Spezifikation & Vertrag",
+        "outputs": [
+          { "output_id": "vert_recon", "typ": "uiOutput", "inhalt": "Pfad der gesicherten verteilungen_spec.rds (Eingabe fuer Phase 5/6), dokumentierte CV-Basis-Allokation (menge = Menge+Menge_Preis-Basis, material = Material-Basis, m_leb in der Mengen-Basis), Hinweis Historie >=24 Monate fuer belastbare aleatorische Schaetzung." }
+        ]
+      }
+    ],
+    "kennzahlen": [
+      { "dom_id": "vert-treiber-anzahl", "kennzahl": "Anzahl Treiber mit Verteilung", "quelle": "diagnostics$n_treiber", "format": "ganzzahl" },
+      { "dom_id": "vert-historie-monate", "kennzahl": "Monate Historie (Basisjahr)", "quelle": "diagnostics$historie_monate", "format": "ganzzahl" },
+      { "dom_id": "vert-cv-belastbar", "kennzahl": "Status CV-Schaetzung belastbar (>=24 Monate)", "quelle": "diagnostics$cv_belastbar", "format": "badge" },
+      { "dom_id": "vert-cv-geschaetzt", "kennzahl": "Anzahl Treiber mit geschaetzter CV", "quelle": "diagnostics$cv_geschaetzt_n", "format": "ganzzahl" },
+      { "dom_id": "vert-cv-vorgabe", "kennzahl": "Anzahl Treiber mit Vorgabe-CV", "quelle": "diagnostics$cv_vorgabe_n", "format": "ganzzahl" },
+      { "dom_id": "vert-spec-pfad", "kennzahl": "Pfad der gesicherten Spezifikation (spec.rds)", "quelle": "spec_path", "format": "text" },
+      { "dom_id": "vert-basis", "kennzahl": "CV-Basis-Allokation (menge/material)", "quelle": "diagnostics$basis_text", "format": "text" }
+    ]
+  }
+}

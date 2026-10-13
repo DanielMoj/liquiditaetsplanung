@@ -1,0 +1,100 @@
+{
+  "schema_version": 1,
+  "phase": "phase-11-massnahmen-ui",
+  "titel": "Massnahmen",
+  "vorlage": null,
+  "funktionen": [
+    {
+      "name": "szenario_mit_paket",
+      "datei": "R/massnahmen.R",
+      "zweck": "GENAU EIN neuer Szenariobau-Helfer — der uebrige Bestand von R/massnahmen.R (massnahmen_katalog, quantifiziere_paket, massnahmen_overlay, szenario_name_mit_paket) und die committete Spezifikation tests/test_massnahmen.R bleiben UNANGETASTET: szenario_mit_paket(wbpath, paket, basis_name = \"Basis\") -> liqui_scenario ueber scenario_from_workbook(wbpath, name = szenario_name_mit_paket(basis_name, paket), assume_overrides = quantifiziere_paket(paket, H)$treiber_overrides) mit H = HMAX der Mappe (mdl$HMAX; die treiber_overrides sind H-unabhaengig, H dient allein der Validierung der delta-Eintraege im Paket — der Helfer darf dafuer die Mappe einmal vorab laden oder scenario_from_workbook zweistufig rufen, MC-frei ist beides, nur load_model). BEGRUENDUNG (warum ein eigener Helfer statt scenarios_from_specs): scenarios_from_specs (R/compare_scenarios.R) traegt je spec nur EINEN benannten Ein-Treiber-Override (list(name, treiber, wert)) — Massnahmen-Pakete koennen MEHRERE Treiber gleichzeitig belegen (quantifiziere_paket summiert je Treiber ueber alle Paket-Eintraege); der Helfer schliesst genau diese Luecke, ohne scenarios_from_specs oder compare_scenarios anzufassen. Die Override-Mechanik SETZT die Annahme (scenario_from_workbook: mdl$assume[[treiber]] <- wert), konsistent zum Kern-Vertrag 'direkt anschlussfaehig an assume_overrides'; delta-Anteile des Pakets laufen NICHT in die assumes — sie wirken als massnahmen_overlay auf das Simulationsergebnis (siehe start_paket_vergleich). Kein Monte-Carlo, kein RNG, keine Formatierung; Fehler aus quantifiziere_paket (unbekannte id, start_m ausserhalb 1..H) propagieren unveraendert.",
+      "engine_funktionen": []
+    },
+    {
+      "name": "start_paket_vergleich",
+      "datei": "app/app.R",
+      "zweck": "Massnahmen-Schirm + Server-Logik in app/app.R (TABUS: keine kernel/-Aenderung, keine Gate-Infrastruktur, bestehende Tests und bestehende Schirme unangetastet). (1) MENUE: PHASEN-Vektor erhaelt den Eintrag 'Massnahmen' = 'massnahmen'. (2) KATALOG & PAKET (Reiter 1): massnahmen_info (Kopf mit Kennzahl-Span massnahmen-katalog-n = nrow(massnahmen_katalog()) ueber den bestehenden Kennzahl-Span-Helfer, textContent exakt die Ganzzahl; initial deterministisch ohne jeden Lauf), massnahmen_katalog_tbl (alle Katalogzeilen mit allen sechs Spalten id/name/kategorie/typ/treiber/hinweis), massnahmen_paket_ui (Schalterliste: je Katalogzeile checkboxInput mit id paste0('mn_', id) — das Praefix-Literal 'mn_' ist Quelltext-Vertrag; je AKTIVIERTER Massnahme die Parametrisierung: typ treiber -> numericInput mn_<id>_delta; typ delta -> numericInput mn_<id>_betrag, numericInput mn_<id>_start (1..H), numericInput mn_<id>_dauer und selectInput mn_<id>_verlauf mit den Choices einmalig/linear — die Suffix-Literale '_delta', '_betrag', '_start', '_dauer', '_verlauf' sind Quelltext-Vertrag). Ein Paket-Reactive sammelt daraus die paket-Liste im quantifiziere_paket-Vertrag (je Eintrag list(id, params)). (3) DELTA-VORSCHAU (Reiter 2, MC-FREI und SOFORT): vorschau_ui projiziert auf den VORHANDENEN Simulationsstand sim_rv$out — OHNE Sim-Lauf ein klarer Hinweis als REGULAERER Inhalt (kein Fehlerzustand, der Output muss initial befuellt sein: Verifier-Punkt 3); mit Lauf: H = ncol(sim_rv$out$B), q = quantifiziere_paket(paket, H), res = massnahmen_overlay(sim_rv$out, q$delta_monat); Kennzahlen vorher/nachher als Spans vorschau-trough-median-vorher/-nachher (median(out$trough), fmt), vorschau-p-breach-vorher/-nachher (100 * mean(trough < -kk_limit), Prozent mit einer Nachkommastelle; kk_limit aus derselben Modell-Quelle wie der Deckungs-Schirm), vorschau-plan-trough-vorher/-nachher (metrics$plan_trough, fmt); traegt das Paket treiber-Anteile, zeigt die Vorschau zusaetzlich den Hinweis, dass diese erst im Paket-Vergleich wirken (die Vorschau projiziert NUR den delta-Anteil). (4) PAKET-VERGLEICH (Reiter 3, mirai-Worker wie start_vergleich): benannte Server-Funktion start_paket_vergleich(wbpath, paket) — Muster start_vergleich inkl. Abbrechen ueber mirai::stop_mirai, HAS_ASYNC-Degradation mit Hinweis, promises::then; der Worker rechnet Basis vs. Basis+Paket ueber die compare_scenarios-BAUSTEINE: sc_basis = scenario_from_workbook(wbpath), sc_paket = szenario_mit_paket(wbpath, paket, 'Basis') (Treiber-Anteil als assume_overrides im Szenariobau, Name szenario_name_mit_paket), je Szenario GENAU EIN phase_simulation-Lauf, danach der delta-Anteil als massnahmen_overlay auf das Paket-out, Tabelle = vergleich_from_outs(list(out_basis, out_paket), kk_limits je aus sc$mdl$kk_limit, namen = c('Basis', sc_paket$name)); Ergebnisobjekt list(phase = 'massnahmen_vergleich', n = 2L, tabelle) im Spaltenvertrag von compare_scenarios. BEGRUENDUNG der Komposition: der compare_scenarios-Wrapper gibt nur die fertige tabelle zurueck und laesst keinen Overlay-Einschub zwischen Simulation und Projektion zu — darum dieselben Bausteine (phase_simulation + vergleich_from_outs) statt des Wrappers; KEINE zweite Monte-Carlo, compare_scenarios bleibt unveraendert. Bedienung/Anzeige in paket_vergleich_ui: actionButtons paket_vergleich_start und paket_vergleich_abbruch, Lauf-Status, Fehlertext, initial ein deterministischer Hinweis 'kein Vergleich gestartet' (Befuelltheit ohne Lauf), nach erfolgreichem Lauf die Vergleichstabelle als HTML-Tabelle (htmltools tags$table) aus paket_rv$out$tabelle — EUR ueber fmt(), Prozente sprintf('%.1f%%'), Formatierung NUR im Render. VERTRAGSNAMEN fuer Stubs (tests/test_massnahmen_ui.R): reactiveValues paket_rv mit den Feldern out/running/err/cancelled/handle/key (Muster vergleich_rv aus phase-08); sim_rv ist der bestehende Simulations-Zustand.",
+      "engine_funktionen": []
+    }
+  ],
+  "tests": [
+    {
+      "datei": "tests/test_massnahmen_ui.R",
+      "art": "testthat",
+      "rot_zuerst": true,
+      "prueft": "Spezifikation der Massnahmen-UI-Anbindung, rot zuerst (im aktuellen Stand fehlen der PHASEN-Eintrag 'massnahmen', alle Schirm-ids in app/app.R und szenario_mit_paket in R/massnahmen.R — Quelltext-Orakel wie Vertragstests fallen; kein succeed, keine Anker-/Tier-1-Literale, kein Monte-Carlo, kein Browser; der tests-Bestand bleibt unangetastet, diese Datei ist der einzige neue Test): (1) Struktur-/Bindungs-Orakel gegen den app/app.R-QUELLTEXT (readLines ab Repo-Wurzel, Muster .root aus test_compare_mutgate): PHASEN traegt das Paar 'Massnahmen' -> 'massnahmen'; WOERTLICH vorhanden sind die output-ids massnahmen_info, massnahmen_katalog_tbl, massnahmen_paket_ui, vorschau_ui, paket_vergleich_ui, die Kennzahl-dom-id massnahmen-katalog-n, die sechs Vorschau-Span-ids vorschau-trough-median-vorher, vorschau-trough-median-nachher, vorschau-p-breach-vorher, vorschau-p-breach-nachher, vorschau-plan-trough-vorher, vorschau-plan-trough-nachher, die input-ids paket_vergleich_start und paket_vergleich_abbruch, die Erzeugungs-Literale des Input-Vertrags ('mn_' sowie die Suffixe _delta, _betrag, _start, _dauer, _verlauf und die Choices einmalig/linear), der reactiveValues-Name paket_rv und die Baustein-Aufrufe szenario_mit_paket, quantifiziere_paket, massnahmen_overlay, vergleich_from_outs. (2) Vertragstests szenario_mit_paket am EXTERNEN Orakel (kernel/engine.R + R/scenario.R + R/massnahmen.R gesourct, Fixture-Mappe, nur load_model — kein MC, kleines synthetisches Paket): Paket mit ZWEI treiber-Eintraegen auf VERSCHIEDENEN Treibern plus EINEM delta-Eintrag; Rueckgabe inherits liqui_scenario; Name identical zu szenario_name_mit_paket(basis_name, paket), extern gebaut, inkl. Zweitfall mit anderem basis_name; assume UND mdl$assume tragen an den beiden Treibern EXAKT quantifiziere_paket(paket, H)$treiber_overrides mit H = mdl$HMAX der Basis (Muster test_compare_mutgate: Override greift exakt am benannten Treiber), alle uebrigen Annahmen identical zur Basis und der delta-Eintrag laeuft NICHT in die assumes; Fehlerfall: unbekannte id im Paket propagiert mit der id im Fehlertext. (3) Delta-Vorschau-Projektion am synthetischen out-Stub (Muster .mk_overlay_out aus tests/test_massnahmen.R NACHGEBAUT — die committete Spezifikationsdatei bleibt unveraendert; keine Tier-1-Werte, synthetisches kk_limit): fuer ein delta_monat mit Vorzeichenwechsel rechnet der Test die drei Vorschau-Kennzahlen vorher/nachher SELBST — trough_median = median(trough), P_breach_pct = 100 * mean(trough < -kk_limit), plan_trough aus metrics; vorher aus dem Stub, nachher per cumsum-Orakel unabhaengig von massnahmen_overlay — und vergleicht gegen dieselbe Projektion auf massnahmen_overlay(stub, delta) (all.equal 1e-12); Nicht-Trivialitaets-Waechter als harte Fails: alle drei Kennzahlen aendern sich (nachher != vorher); Neutralitaets-Gegenprobe: Nullvektor-delta -> alle drei Kennzahlen identisch zum Stub. (4) KEIN shinytest2-Zwang (etablierte Regel): E2E-Anteile (echter Reiterklick, DOM-Auslesen der Spans, Worker-Lauf) mit SICHTBAREM skip samt Begruendung 'shinytest2-Infrastruktur fehlt', solange die Infrastruktur fehlt; die deterministische Render-Pruefung des Schirms (Katalog-Kennzahl) uebernimmt der Phasen-Anker."
+    }
+  ],
+  "anker": {
+    "tier1_unveraendert": true,
+    "phasen_anker": [
+      {
+        "kennzahl": "schirm: massnahmen_info / massnahmen_katalog_tbl (Katalogzeilen-Zahl)",
+        "kriterium": "Beobachter-Invarianz + Katalog-Determinismus: der Massnahmen-Schirm zeigt ohne jeden Simulationslauf deterministisch exakt nrow(massnahmen_katalog()) == 12 Katalogzeilen — die Kennzahl massnahmen-katalog-n traegt die Zahl als textContent und die Katalog-Tabelle fuehrt alle 12 Katalog-ids; der Schirm ruft fuer diese Elemente weder Engine noch Monte-Carlo, die drei Tier-1-Kopfzahlen bleiben unbewegt (tier1_unveraendert, geprueft von tests/run_all.R und vom Anker-Skript scripts/check_anchors.R der Entwicklungsumgebung, das nicht in diesem Repository liegt, siehe https://github.com/DanielMoj/harness-template).",
+        "pruefung": "local({ app_env <- new.env(parent = globalenv()); source(file.path(\"app\", \"app.R\"), local = app_env, chdir = TRUE); n_soll <- nrow(app_env$massnahmen_katalog()); kat_ids <- app_env$massnahmen_katalog()$id; ok <- tryCatch({ shiny::testServer(app_env$server, { session$setInputs(phase = \"massnahmen\"); info <- output$massnahmen_info$html; tbl <- output$massnahmen_katalog_tbl; stopifnot(grepl(\"massnahmen-katalog-n\", info, fixed = TRUE), grepl(sprintf(\">%d<\", n_soll), info, fixed = TRUE), all(vapply(kat_ids, function(i) grepl(i, tbl, fixed = TRUE), logical(1L)))) }); TRUE }, error = function(e) FALSE); if (\"mirai\" %in% loadedNamespaces()) try(mirai::daemons(0), silent = TRUE); ok && identical(n_soll, 12L) })",
+        "toleranz": 0,
+        "toleranz_bezug": "absolut"
+      },
+      {
+        "kennzahl": "szenario_mit_paket: name / assume / mdl$assume",
+        "kriterium": "Szenariobau-Treue des Paket-Helfers auf der Fixture-Mappe (nur load_model, kein Monte-Carlo): szenario_mit_paket liefert ein liqui_scenario mit Name exakt nach szenario_name_mit_paket; ein Paket mit zwei Treiber-Eintraegen auf verschiedenen Treibern setzt BEIDE Treiber-Annahmen (assume und mdl$assume) exakt auf quantifiziere_paket(...)$treiber_overrides — die Mehr-Treiber-Faehigkeit, die scenarios_from_specs nicht traegt — und laesst alle uebrigen Annahmen identisch zur Basis; der delta-Eintrag des Pakets laeuft nicht in die assumes.",
+        "pruefung": "local({ paket <- list(list(id = \"preiserhoehung\", params = list(delta = 0.02)), list(id = \"energieeinsparung\", params = list(delta = -0.05)), list(id = \"kurzarbeit\", params = list(betrag = 90000, start_m = 2, dauer = 3, verlauf = \"linear\"))); basis <- scenario_from_workbook(WB); H <- basis$mdl$HMAX; q <- quantifiziere_paket(paket, H); sc <- szenario_mit_paket(WB, paket, \"Basis\"); rest <- setdiff(names(basis$mdl$assume), names(q$treiber_overrides)); inherits(sc, \"liqui_scenario\") && identical(sc$name, szenario_name_mit_paket(\"Basis\", paket)) && identical(length(q$treiber_overrides), 2L) && all(vapply(names(q$treiber_overrides), function(k) isTRUE(all.equal(sc$mdl$assume[[k]], q$treiber_overrides[[k]], tolerance = 1e-12)) && isTRUE(all.equal(sc$assume[[k]], q$treiber_overrides[[k]], tolerance = 1e-12)), logical(1L))) && identical(sc$mdl$assume[rest], basis$mdl$assume[rest]) })",
+        "toleranz": 1e-12,
+        "toleranz_bezug": "absolut"
+      }
+    ]
+  },
+  "schirm": {
+    "menue_wert": "massnahmen",
+    "reiter": [
+      {
+        "titel": "Katalog & Paket",
+        "outputs": [
+          {
+            "output_id": "massnahmen_info",
+            "typ": "uiOutput",
+            "inhalt": "Kopf des Massnahmen-Schirms: Katalogzeilen-Zahl als Kennzahl-Span massnahmen-katalog-n (Ganzzahl, Quelle nrow(massnahmen_katalog()), ueber den bestehenden Kennzahl-Span-Helfer mit .noWS — textContent exakt die Zahl) plus Kurzhinweis zum zweipfadigen Wirkmodell (treiber-Massnahmen wirken ueber den naechsten Simulationslauf, delta-Massnahmen sofort als Overlay). Initial deterministisch befuellt, ohne jeden Lauf."
+          },
+          {
+            "output_id": "massnahmen_katalog_tbl",
+            "typ": "tableOutput",
+            "inhalt": "Alle Zeilen aus massnahmen_katalog() (exakt 12, drei Kategorien) mit allen sechs Katalogspalten id, name, kategorie, typ, treiber, hinweis — deterministisch und ohne Simulationslauf befuellt; die Zeilenzahl ist der Phasen-Anker."
+          },
+          {
+            "output_id": "massnahmen_paket_ui",
+            "typ": "uiOutput",
+            "inhalt": "Katalog-Schalterliste: je Katalogzeile eine Checkbox mit input-id paste0('mn_', id) (Praefix-Vertrag 'mn_' woertlich im Quelltext); je AKTIVIERTER Massnahme die Parametrisierung — typ treiber: numericInput mn_<id>_delta (ein Delta-Zahlenfeld); typ delta: numericInput mn_<id>_betrag, numericInput mn_<id>_start (1..H), numericInput mn_<id>_dauer, selectInput mn_<id>_verlauf mit den Choices einmalig/linear. Initial (keine Massnahme aktiviert) zeigt der Output die 12 Checkboxen — befuellt ohne Lauf."
+          }
+        ]
+      },
+      {
+        "titel": "Delta-Vorschau",
+        "outputs": [
+          {
+            "output_id": "vorschau_ui",
+            "typ": "uiOutput",
+            "inhalt": "MC-freie Sofort-Vorschau des delta-Anteils auf dem VORHANDENEN Simulationsstand sim_rv$out via massnahmen_overlay(out_sim, quantifiziere_paket(paket, ncol(out_sim$B))$delta_monat): Kennzahlen vorher/nachher als Spans vorschau-trough-median-vorher / vorschau-trough-median-nachher (median(out$trough), fmt), vorschau-p-breach-vorher / vorschau-p-breach-nachher (100 * mean(trough < -kk_limit), eine Nachkommastelle), vorschau-plan-trough-vorher / vorschau-plan-trough-nachher (metrics$plan_trough, fmt). OHNE Sim-Lauf zeigt der Output einen klaren Hinweis als regulaeren Inhalt (kein Fehlerzustand — initial befuellt); traegt das Paket treiber-Anteile, zusaetzlich der Hinweis, dass diese erst im Paket-Vergleich wirken. Werte erscheinen erst nach einem Simulationslauf — darum Existenz-Check ueber diesen Output, keine kennzahlen-Eintraege."
+          }
+        ]
+      },
+      {
+        "titel": "Paket-Vergleich",
+        "outputs": [
+          {
+            "output_id": "paket_vergleich_ui",
+            "typ": "uiOutput",
+            "inhalt": "Paket-Vergleich Basis vs. Basis+Paket im mirai-Worker (Muster start_vergleich): actionButtons paket_vergleich_start und paket_vergleich_abbruch, Lauf-Status, Fehlertext; initial ein deterministischer Hinweis 'kein Vergleich gestartet' (Output befuellt ohne Lauf). Nach erfolgreichem Lauf die Vergleichstabelle aus paket_rv$out$tabelle (Spaltenvertrag von vergleich_from_outs: szenario, plan_trough, trough_median/p05/p95, P_breach_pct, P_solvent_pct, insO_erfuellt, kk_limit, S, seed) als HTML-Tabelle — EUR ueber fmt(), Prozente sprintf('%.1f%%'), Formatierung nur im Render. Werte erst nach dem Worker-Lauf — darum Existenz-Check ueber diesen Output, keine kennzahlen-Eintraege."
+          }
+        ]
+      }
+    ],
+    "kennzahlen": [
+      {
+        "dom_id": "massnahmen-katalog-n",
+        "kennzahl": "Anzahl der Massnahmen im Startkatalog (Katalogzeilen der Schirm-Tabelle)",
+        "quelle": "nrow(massnahmen_katalog())",
+        "format": "ganzzahl"
+      }
+    ]
+  }
+}

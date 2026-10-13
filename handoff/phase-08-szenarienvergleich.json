@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "phase": "phase-08-szenarienvergleich",
+  "titel": "Szenario-Vergleich",
+  "vorlage": null,
+  "funktionen": [
+    {
+      "name": "compare_scenarios",
+      "datei": "R/compare_scenarios.R",
+      "zweck": "Wrapper des Szenario-Vergleichs: scs = Liste von liqui_scenario; stopifnot Laenge >= 1, jedes Element liqui_scenario, Namen (sapply sc$name) eindeutig. Je Szenario GENAU EIN Aufruf phase_simulation(sc) — keine zweite Monte-Carlo, keine Kernel-Aenderung, kein eigenes Rauschen; kk_limit je Szenario aus sc$mdl$kk_limit. Rueckgabe list(phase = \"szenarienvergleich\", n = Laenge, tabelle = vergleich_from_outs(...)) statt Konsolen-Druck. KEIN Legacy-Skript (vorlage: null ist die schema-konforme Darstellung, da das vorlage-Pattern nur legacy/-Pfade zulaesst) — fachliche Grundlage ist die Szenario-Abstraktion in R/scenario.R (scenario_from_workbook, assume_overrides, sim$paths/seed). App-Seite: das Ergebnisobjekt liegt in den server-internen reactiveValues vergleich_rv (Feld out) — dieser Name ist Vertragsbestandteil, damit der Bindungs-Test tests/test_compare_ui.R ihn stubben kann.",
+      "engine_funktionen": []
+    },
+    {
+      "name": "vergleich_from_outs",
+      "datei": "R/compare_scenarios.R",
+      "zweck": "Reine Funktion ohne Simulation und ohne Formatierung (Muster deckung_from_out): outs = Liste von phase_simulation-Ergebnisobjekten, kk_limits = numerischer Vektor, namen = character; stopifnot gleiche Laengen >= 1 und eindeutige namen. Rueckgabe: data.frame mit einer Zeile je Element in EINGABEREIHENFOLGE und den Spalten szenario, plan_trough (aus out$metrics$plan_trough), trough_median/trough_p05/trough_p95 (median bzw. unname(quantile(out$trough, .05/.95))), P_breach (mean(out$trough < -kk_limit), strikt <), P_solvent (1 - P_breach), P_breach_pct/P_solvent_pct (100 x Anteil), insO_erfuellt (P_solvent > 0.5, STRIKT >, exakt 0.5 -> FALSE), kk_limit, S, seed (aus out$metrics). EUR-/Prozent-Formatierung ueber fmt()/sprintf erst im app-Render.",
+      "engine_funktionen": []
+    }
+  ],
+  "tests": [
+    {
+      "datei": "tests/test_compare.R",
+      "art": "testthat",
+      "rot_zuerst": true,
+      "prueft": "Treue und Vertrag des Szenario-Vergleichs: (1) vergleich_from_outs an drei paarweise unverwechselbaren synthetischen Stubs — jede Spalte (plan_trough, trough_median/p05/p95, P_breach/P_solvent, *_pct, insO_erfuellt, kk_limit, S, seed) extern vom Test nachgerechnet (all.equal, Toleranz 1e-12), Zeile i gegen Stub i plus expliziter Kreuz-Check, dass Zeile 1 nicht die Werte von Stub 2 traegt (killt Zeilentausch/Off-by-one); (2) insO-Grenzwert am Stub: exakt haelftiger Breach-Anteil -> P_solvent exakt 0.5 -> insO_erfuellt identical FALSE (strikt >), plus je ein Stub klar darueber (TRUE) und klar darunter (FALSE); (3) Eingabevertraege der reinen Funktion (ungleiche Laengen, doppelte namen, leere Listen -> Fehler); (4) Wrapper-Naht auf der Fixture: zwei Szenarien (Basis + assume_overrides menge = -0.30 mit eigenem Namen, paths 12, Seed 2026, EIN memoisierter Lauf), jede Zeile extern aus einem EIGENEN deterministischen phase_simulation-Lauf gerechnet — ohne vergleich_from_outs und ohne deckung_from_out — inkl. plan_trough/S/seed/kk_limit, mit Nicht-Trivialitaets-Guard als hartem Fail (trough_median der beiden Zeilen verschieden); (5) Reihenfolge/Struktur (tabelle$szenario identical in Eingabereihenfolge, n == 2, exakte Spaltennamen, P-Spalten in [0,1], insO_erfuellt logical); (6) Determinismus (zweiter compare_scenarios-Aufruf liefert identical(tabelle)); (7) Fehlerfaelle des Wrappers (leere Liste, Element ohne liqui_scenario-Klasse, doppelte Namen)."
+    },
+    {
+      "datei": "tests/test_compare_ui.R",
+      "art": "testthat",
+      "rot_zuerst": true,
+      "prueft": "Semantische Render-Bindung des Schirms (testServer, kein Browser, keine Monte-Carlo; rot zuerst, weil vergleich_rv und die Outputs vergleich_info/vergleich_tbl noch fehlen): vergleich_rv$out mit synthetischem compare_scenarios-Stub belegt (zwei Zeilen, alle Spalten, paarweise unverwechselbar, keine Tier-1-Werte); (a) Kennzahl-Span vergleich-n zeigt exakt n (Integer als Text, sprintf %d); (b) das gerenderte vergleich_tbl-HTML traegt Zeile 1 mit den fmt-/Prozent-formatierten Werten von tabelle-Zeile 1 und Zeile 2 mit denen von Zeile 2 — Erwartungen unabhaengig aus dem Stub gerechnet (fmt aus der App-Umgebung, sprintf %.1f%% fuer die Prozente), expliziter Kreuz-Check gegen Zeilentausch; (c) insO-Spalte zeigt ja fuer TRUE und den Nicht-ja-Marker (—) fuer FALSE, auch am exakten Rand P_solvent == 0.5; zweiter Flush mit veraendertem Stub (drei Zeilen, gekippte insO-Belegung) beweist, dass Re-Render und n-Kennzahl dem Objekt folgen. xml2 fehlt -> sichtbar begruendeter skip; die beim Sourcen gestarteten mirai-Daemons werden am Dateiende deterministisch geschlossen."
+    }
+  ],
+  "anker": {
+    "tier1_unveraendert": true,
+    "phasen_anker": [
+      {
+        "kennzahl": "tabelle",
+        "kriterium": "Zeilen- und Schwellen-Treue der Vergleichstabelle: eine Zeile je Szenario (nrow == n, szenario eindeutig; die Bindung an die Eingabereihenfolge selbst pinnt tests/test_compare.R gegen die Szenario-Namen), P_solvent == 1 - P_breach, die Prozent-Spalten == 100 x Anteil, und insO_erfuellt folgt exakt der strikten Schwelle P_solvent > 0.5 (exakt 0.5 -> FALSE; kein hartcodiertes Urteil, faengt einen falschen >= und einen Komplement-Flip).",
+        "pruefung": "local({ tb <- out$tabelle; is.data.frame(tb) && nrow(tb) == out$n && anyDuplicated(tb$szenario) == 0L && isTRUE(all.equal(tb$P_solvent, 1 - tb$P_breach, tolerance = 1e-12)) && isTRUE(all.equal(tb$P_breach_pct, 100 * tb$P_breach, tolerance = 1e-12)) && isTRUE(all.equal(tb$P_solvent_pct, 100 * tb$P_solvent, tolerance = 1e-12)) && identical(tb$insO_erfuellt, tb$P_solvent > 0.5) })",
+        "toleranz": 1e-12,
+        "toleranz_bezug": "absolut"
+      }
+    ]
+  },
+  "schirm": {
+    "menue_wert": "vergleich",
+    "reiter": [
+      {
+        "titel": "Szenario-Vergleich",
+        "outputs": [
+          {
+            "output_id": "vergleich_info",
+            "typ": "uiOutput",
+            "inhalt": "Kopf des Vergleichs mit der Anzahl der verglichenen Szenarien als Kennzahl-Span vergleich-n (Integer als Text, sprintf %d); Quelle vergleich_rv$out$n. Der reactiveValues-Name vergleich_rv (Feld out = compare_scenarios-Ergebnisobjekt) ist Vertragsbestandteil, damit der Bindungs-Test tests/test_compare_ui.R ihn stubben kann."
+          },
+          {
+            "output_id": "vergleich_tbl",
+            "typ": "tableOutput",
+            "inhalt": "Eine Zeile je Szenario in Eingabereihenfolge mit den Zellen Szenario, Plan-Tiefpunkt, Tiefpunkt Median, Tiefpunkt P05, Tiefpunkt P95 (EUR ueber fmt()), P(KK-Linie reisst) und P(zahlungsfaehig ueber den Horizont) in Prozent mit einer Nachkommastelle (sprintf %.1f%%) sowie insO erfuellt als ja/—; numerische Quelle ist vergleich_rv$out$tabelle, die Formatierung passiert erst im Render."
+          }
+        ]
+      }
+    ],
+    "kennzahlen": [
+      {
+        "dom_id": "vergleich-n",
+        "kennzahl": "Anzahl verglichener Szenarien",
+        "quelle": "n",
+        "format": "ganzzahl"
+      }
+    ]
+  }
+}

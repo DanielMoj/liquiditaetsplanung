@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "phase": "phase-09-xlsx",
+  "titel": "Export xlsx",
+  "vorlage": null,
+  "funktionen": [
+    {
+      "name": "export_xlsx",
+      "datei": "R/export.R",
+      "zweck": "Schreibt eine BENANNTE Liste von Phasen-Ergebnisobjekten ueber openxlsx2 in genau eine xlsx-Datei und gibt list(pfad = <geschriebener Pfad>, blaetter = <character der Blattnamen in Schreibreihenfolge>) zurueck — keine Simulation, kein Grafikgeraet, deterministisch (kein Zeitstempel im Zellinhalt), nur unformatierte Zahlen/Strings (fmt() bleibt der UI). Je Eintrag ein Blatt gleichen Namens in EINGABEREIHENFOLGE: sim_monate -> table (data.frame) unveraendert; vergleich -> tabelle (data.frame) unveraendert; sim_deckung -> zweispaltiges Key/Wert-Blatt (kennzahl, wert) mit den skalaren Kennzahlen in Vertragsreihenfolge des Ergebnisobjekts (trough_median, trough_p05, trough_p95, P_breach, P_solvent, P_breach_pct, P_solvent_pct, insO_erfuellt, kk_limit, seed, S; insO_erfuellt als 0/1 via as.numeric, damit die wert-Spalte homogen numerisch bleibt — gepinnte Entscheidung); varianzzerlegung -> Key/Wert-Blatt der var_/sd_/anteil_-Felder plus S/seed in Vertragsreihenfolge (var_gesamt, var_epi, var_ale, var_inter, sd_gesamt, sd_epi, sd_ale, anteil_epi, anteil_ale, anteil_inter, S, seed — S VOR seed, anders als sim_deckung). BLATTSTRUKTUR-ENTSCHEIDUNG forecast (in tests/test_export_xlsx.R gepinnt): der Eintrag forecast zaehlt als ZWEI Blaetter — Blatt 'forecast' = cash-Matrix als data.frame (Zeilennamen als erste Spalte 'Position', danach M1..MH), Blatt 'forecast_kpis' = kpis als Key/Wert-Paare (trough, trough_month, maxKK, months_below, result, end). Fehler: unbekannter Listenname (Fehlertext enthaelt den Namen), leere Liste, unbenannte Liste. KEIN Legacy-Vorbild (vorlage: null ist die schema-konforme Darstellung wie bei phase-08, da das vorlage-Pattern nur legacy/-Pfade zulaesst); Zielort R/export.R laut ARCHITECTURE.md. App-Seite (Runde I): Sidebar-Bereich 'Datei -> Export' mit downloadButton export_xlsx_btn in einem Container mit fester DOM-ID export-xlsx; der downloadHandler sammelt die vorhandenen Ergebnisobjekte der Session (rv/sim_rv/var_rv/vergleich_rv, nur nicht-NULL Eintraege) unter ihren Vertragsnamen und ruft export_xlsx. Schirm-Darstellung (Darstellungs-Entscheidung): die Einheit ist SCHIRM-LOS — Sidebar-Download statt Phasen-Schirm, KEIN neuer Eintrag im PHASEN-Vektor, kein nav_panel; im Handoff als menue_wert null mit leerem reiter-Array dargestellt (Schema-Semantik fuer schirm-lose Einheiten). Pruefbares Element ist allein die kennzahlen-DOM-ID export-xlsx, der Container des downloadButton export_xlsx_btn im Sidebar-Bereich 'Datei -> Export'; Reiter-/Output-Pruefungen entfallen. Das fruehere Reiter-Surrogat 'Datei -> Export' (Download-Element als uiOutput-Eintrag, weil die typ-Enumeration kein downloadButton kennt) war nur der frueheren Schema-Pflicht menue_wert/reiter/outputs geschuldet und entfaellt.",
+      "engine_funktionen": []
+    }
+  ],
+  "tests": [
+    {
+      "datei": "tests/test_export_xlsx.R",
+      "art": "testthat",
+      "rot_zuerst": true,
+      "prueft": "Ruecklese-Treue und Vertrag des xlsx-Exports (rot zuerst: ungeschuetztes source() von R/export.R bricht ab, solange die Datei fehlt): (1) Rueckgabe-Vertrag — pfad existiert und ist der Zielpfad, blaetter identical zur Eingabereihenfolge (forecast zaehlt als zwei Blaetter forecast + forecast_kpis; Eingabeliste bewusst weder alphabetisch noch in Phasenfolge) und identical zur openxlsx2-Blattliste der Datei; (2) Ruecklese-Orakel an fuenf synthetischen, paarweise unverwechselbaren Stubs (keine Tier-1-Werte; Erwartungen als eigene, vom Stub unabhaengig gehaltene Literale; Lesen ueber wb_load + wb_to_df): forecast-Blatt == cash-Matrix (Position + M1..M3), forecast_kpis/sim_deckung/varianzzerlegung als Key/Wert-Blaetter mit exakt gepinnten Key-Reihenfolgen (deckung: seed VOR S; varianz: S VOR seed) und numerischer wert-Spalte (insO_erfuellt als 1/0), sim_monate-table und vergleich-tabelle Zelle fuer Zelle (all.equal 1e-12 fuer Zahlen, identical fuer Strings, insO via as.logical); Koeder-Felder (guv, T_full/T_epi/T_ale/Theta, phase/scenario) landen NICHT im Blatt; (3) Kreuz-Check deckung <-> varianz — weder Keys noch irgendein wert des jeweils anderen Stubs im Blatt (killt Blatt-/Objektvertauschung); (4) Determinismus — zwei Exporte derselben Eingabe nach zwei tempfiles liefern identical zurueckgelesene Zellinhalte (Datei-Bytes duerfen abweichen); (5) Fixture-Naht — ein memoisierter echter phase_sim_monate-Lauf (paths = 12, Seed 2026), Export + Ruecklesen, P50/P05/P95/P_unter identisch zur table des Ergebnisobjekts (Toleranz 1e-9 wie der monate-Anker); (6) Fehlerfaelle — unbekannter Listenname mit dem Namen im Fehlertext (auch neben gueltigen Namen), leere Liste, unbenannte Liste."
+    }
+  ],
+  "anker": {
+    "tier1_unveraendert": true,
+    "phasen_anker": [
+      {
+        "kennzahl": "blaetter",
+        "kriterium": "Ruecklese-Treue des Exports: die Blattliste der geschriebenen Datei ist identical zu den Eingabenamen in Eingabereihenfolge (Rueckgabe blaetter == openxlsx2-Blattliste), und die zurueckgelesenen Zellwerte sind identical (Strings) bzw. all.equal mit Toleranz 1e-12 (Zahlen) zu den Werten des Ergebnisobjekts — kein Formatieren, kein Umsortieren, kein Zeitstempel im Zellinhalt.",
+        "pruefung": "local({ st <- list(sim_monate = list(table = data.frame(Monat = c(\"M1\", \"M2\"), P05 = c(-2.5, -1.25), P50 = c(0.5, 1.75), P95 = c(3.25, 4.5), P_unter = c(0.25, 0.1), stringsAsFactors = FALSE))); tf <- tempfile(fileext = \".xlsx\"); r <- export_xlsx(st, tf); wb <- openxlsx2::wb_load(tf); df <- openxlsx2::wb_to_df(wb, sheet = \"sim_monate\"); file.exists(r$pfad) && identical(r$blaetter, names(st)) && identical(unname(openxlsx2::wb_get_sheet_names(wb)), names(st)) && identical(names(df), names(st$sim_monate$table)) && identical(df$Monat, st$sim_monate$table$Monat) && isTRUE(all.equal(df$P05, st$sim_monate$table$P05, tolerance = 1e-12)) && isTRUE(all.equal(df$P50, st$sim_monate$table$P50, tolerance = 1e-12)) && isTRUE(all.equal(df$P95, st$sim_monate$table$P95, tolerance = 1e-12)) && isTRUE(all.equal(df$P_unter, st$sim_monate$table$P_unter, tolerance = 1e-12)) })",
+        "toleranz": 1e-12,
+        "toleranz_bezug": "absolut"
+      }
+    ]
+  },
+  "schirm": {
+    "menue_wert": null,
+    "reiter": [],
+    "kennzahlen": [
+      {
+        "dom_id": "export-xlsx",
+        "kennzahl": "Download-Element 'Datei -> Export' (xlsx) — Container des downloadButton export_xlsx_btn; pruefbares DOM-Element, kein Zahlwert",
+        "quelle": "downloadHandler -> export_xlsx(ergebnisse, pfad)$pfad",
+        "format": "text"
+      }
+    ]
+  }
+}

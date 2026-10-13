@@ -1,0 +1,31 @@
+{
+  "title": "Probabilistische Liquiditätsplanung mit Monte-Carlo-Simulation (R/Shiny)",
+  "upload_type": "software",
+  "version": "1.0.0",
+  "description": "<p>Monte-Carlo-Schicht um einen deterministischen Monats-Liquiditätsplan mit rückabgestimmter Wochensicht: Wahrscheinlichkeit der Zahlungsfähigkeit über den Prognosehorizont, Verteilung des Liquiditätstiefpunkts, Quantilbänder des Endbestands und Wahrscheinlichkeit unter der Mindestreserve je Monat, Treiberanalyse (Tornado, Sobol-Indizes), getrennte Modellierung epistemischer und aleatorischer Unsicherheit mit Varianzzerlegung, Szenario- und Maßnahmenvergleich, prüfbare Exporte. Beispiel: fiktive Krankenhaus gGmbH.</p><p>A Monte Carlo layer around a deterministic monthly liquidity plan, with a weekly view reconciled to the monthly run. Instead of a single cash line, the tool reports the probability of staying solvent over the forecast horizon, the distribution of the cash trough, quantile bands of the month-end balance, the probability of falling below a minimum reserve in each month, and which assumptions drive the trough (tornado, Sobol indices). Epistemic uncertainty (unknown annual assumptions) and aleatoric variability (month-to-month noise estimated from history) are modelled separately, and the variance of the trough is split into both parts. The bundled example is a fictitious hospital (Krankenhaus gGmbH). Interface and documentation are in German.</p>",
+  "creators": [
+    {
+      "name": "Moj, Daniel Andreas",
+      "orcid": "0009-0008-1594-6065"
+    }
+  ],
+  "license": "mit",
+  "keywords": [
+    "Liquiditätsplanung",
+    "Monte-Carlo-Simulation",
+    "Fortbestehensprognose",
+    "Entscheidungen unter Unsicherheit",
+    "Sobol",
+    "PERT",
+    "Shiny",
+    "R"
+  ],
+  "language": "deu",
+  "related_identifiers": [
+    {
+      "identifier": "https://github.com/DanielMoj/liquiditaetsplanung",
+      "relation": "isSupplementTo",
+      "scheme": "url"
+    }
+  ]
+}
