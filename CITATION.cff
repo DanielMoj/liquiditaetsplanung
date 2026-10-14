@@ -4,7 +4,14 @@ type: software
 title: "Probabilistische Liquiditätsplanung mit Monte-Carlo-Simulation (R/Shiny)"
 version: 1.0.0
 date-released: "2026-10-14"
-doi: "10.5281/zenodo.23352913"
+doi: "10.5281/zenodo.23352914"
+identifiers:
+  - type: doi
+    value: "10.5281/zenodo.23352914"
+    description: "Version 1.0.0"
+  - type: doi
+    value: "10.5281/zenodo.23352913"
+    description: "Alle Versionen (Konzept-DOI)"
 authors:
   - family-names: Moj
     given-names: Daniel Andreas
