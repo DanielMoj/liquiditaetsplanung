@@ -30,25 +30,25 @@ Die Methodik ist in [`docs/Methodendokumentation_Liquiditaetsmodell.md`](docs/Me
 
 ## Ansicht
 
-Aufnahmen der laufenden App, Stand 12.10.2026: die ersten drei mit der fiktiven Beispielklinik (Knopf „Demo laden (Tier-1)"), die vierte mit einem Szenario.
+Aufnahmen der laufenden App, Stand 12.10.2026: die ersten drei mit der fiktiven Beispielklinik (Knopf „Demo laden (Tier-1)“), die vierte mit einem Szenario.
 
 **Tiefpunkt und Deckung:** Quantile des Liquiditätstiefpunkts, Wahrscheinlichkeit, die Kontokorrentlinie zu reißen, und Wahrscheinlichkeit, über den Horizont zahlungsfähig zu bleiben.
 
-![Schirm „Tiefpunkt & Deckung": Kennzahlen der Beispielklinik, Tiefpunkt-Quantile und Zahlungsfähigkeit über den Horizont](docs/img/tiefpunkt_deckung.png)
+![Schirm „Tiefpunkt & Deckung“: Kennzahlen der Beispielklinik, Tiefpunkt-Quantile und Zahlungsfähigkeit über den Horizont](docs/img/tiefpunkt_deckung.png)
 
 **Endbestand je Monat:** Monte-Carlo-Bänder (P5–P95, P25–P75, Median) mit Mindestreserve und Kontokorrentlinie, darunter die Wahrscheinlichkeit, im jeweiligen Monat unter der Mindestreserve zu liegen.
 
-![Schirm „Simulation": Fan-Chart des Endbestands je Monat und Balken der Wahrscheinlichkeit unter Mindestreserve](docs/img/endbestand_monte_carlo.png)
+![Schirm „Simulation“: Fan-Chart des Endbestands je Monat und Balken der Wahrscheinlichkeit unter Mindestreserve](docs/img/endbestand_monte_carlo.png)
 
 **Treiberanalyse:** Wirkung von ±1 Prozentpunkt je Jahresannahme auf den Tiefpunkt; die Sobol-Indizes stehen im zweiten Reiter.
 
-![Schirm „Sensitivität", Reiter Tornado: Balken je Treiber und Tabelle der Tiefpunkte](docs/img/tornado.png)
+![Schirm „Sensitivität“, Reiter Tornado: Balken je Treiber und Tabelle der Tiefpunkte](docs/img/tornado.png)
 
-**Szenario „Kontokorrentlinie 5,5 Mio. €":** Der Punktplan bleibt innerhalb der Linie (größte Inanspruchnahme 5.135.990 €), die Wahrscheinlichkeit der Zahlungsfähigkeit über den Horizont liegt aber nur bei 68,7 %.
+**Szenario „Kontokorrentlinie 5,5 Mio. €“:** Der Punktplan bleibt innerhalb der Linie (größte Inanspruchnahme 5.135.990 €), die Wahrscheinlichkeit der Zahlungsfähigkeit über den Horizont liegt aber nur bei 68,7 %.
 
-![Szenario Kontokorrentlinie 5,5 Mio. €, Schirm „Tiefpunkt & Deckung": Punktplan innerhalb der Linie, Zahlungsfähigkeit 68,7 %](docs/img/szenario_kreditlinie.png)
+![Szenario Kontokorrentlinie 5,5 Mio. €, Schirm „Tiefpunkt & Deckung“: Punktplan innerhalb der Linie, Zahlungsfähigkeit 68,7 %](docs/img/szenario_kreditlinie.png)
 
-Geändert ist gegenüber der Beispielmappe nur ein Wert: Blatt `03_Stammdaten_Eroeffnung`, Schlüssel `kk_limit` (Zelle B10, Kontokorrentlinie), 12.000.000 → 5.500.000 €; Annahmen und alle übrigen Werte sind unverändert. Zum Nachstellen diesen Wert in einer Kopie von `fixtures/Mandant_Liquiditaetsmodell_Vorlage.xlsx` ändern, die Kopie in der Seitenleiste unter „oder eigene Mappe" laden und „Tiefpunkt & Deckung" öffnen; die Kopie liegt nicht im Repository. Die App rechnet die Monte-Carlo-Simulation im Hintergrundprozess (mirai) mit dem Zufallsgenerator L'Ecuyer-CMRG; ein direkter Aufruf von `phase_simulation()` in R nutzt bei gleichem Seed den Standardgenerator Mersenne-Twister und kommt deshalb auf leicht andere Werte, hier 68,6 % statt 68,7 % (1570 statt 1564 von 5000 Pfaden reißen die Linie).
+Geändert ist gegenüber der Beispielmappe nur ein Wert: Blatt `03_Stammdaten_Eroeffnung`, Schlüssel `kk_limit` (Zelle B10, Kontokorrentlinie), 12.000.000 → 5.500.000 €; Annahmen und alle übrigen Werte sind unverändert. Zum Nachstellen diesen Wert in einer Kopie von `fixtures/Mandant_Liquiditaetsmodell_Vorlage.xlsx` ändern, die Kopie in der Seitenleiste unter „oder eigene Mappe“ laden und „Tiefpunkt & Deckung“ öffnen; die Kopie liegt nicht im Repository. Die App rechnet die Monte-Carlo-Simulation im Hintergrundprozess (mirai) mit dem Zufallsgenerator L'Ecuyer-CMRG; ein direkter Aufruf von `phase_simulation()` in R nutzt bei gleichem Seed den Standardgenerator Mersenne-Twister und kommt deshalb auf leicht andere Werte, hier 68,6 % statt 68,7 % (1570 statt 1564 von 5000 Pfaden reißen die Linie).
 
 ## Aufbau
 
@@ -60,7 +60,7 @@ fixtures/  Eingabemappe mit fiktiver Beispielklinik und leere Vorlage für neue 
 legacy/    ursprüngliche Phasenskripte für die Kommandozeile und die Python-Generatoren der beiden Mappen
 tests/     Golden-Master gegen eingefrorene Referenzwerte und testthat-Suite
 docs/      Methodendokumentation, Anleitung für neue Mandate, Bildschirmfotos (docs/img/)
-handoff/   Phasenverträge aus der Entwicklung (siehe „Entwicklungsartefakte")
+handoff/   Phasenverträge aus der Entwicklung (siehe „Entwicklungsartefakte“)
 ```
 
 Schnittstellen der Engine, Phasenabhängigkeiten und Cache-Regeln beschreibt der Architekturentwurf [`ARCHITECTURE.md`](ARCHITECTURE.md).
@@ -82,7 +82,7 @@ Für den PDF-Export zusätzlich die [Quarto-CLI](https://quarto.org). Start aus 
 shiny::runApp("app")
 ```
 
-Die Beispielmappe `fixtures/Mandant_Liquiditaetsmodell_Vorlage.xlsx` lädt der Knopf „Demo laden (Tier-1)". Für eigene Daten beschreibt [`docs/Anleitung_neuer_Mandant.md`](docs/Anleitung_neuer_Mandant.md), wie die leere Mappe `fixtures/Mandant_NEU.xlsx` befüllt wird; dieselbe Mappe liefert die App unter „Datei -> Neues Mandat". Jeder Simulationslauf in der App legt unter `runs/` ein Verzeichnis mit Eingabekopie, Endbestand-Matrix und Manifest an (in `.gitignore` ausgeschlossen).
+Die Beispielmappe `fixtures/Mandant_Liquiditaetsmodell_Vorlage.xlsx` lädt der Knopf „Demo laden (Tier-1)“. Für eigene Daten beschreibt [`docs/Anleitung_neuer_Mandant.md`](docs/Anleitung_neuer_Mandant.md), wie die leere Mappe `fixtures/Mandant_NEU.xlsx` befüllt wird; dieselbe Mappe liefert die App unter „Datei -> Neues Mandat“. Jeder Simulationslauf in der App legt unter `runs/` ein Verzeichnis mit Eingabekopie, Endbestand-Matrix und Manifest an (in `.gitignore` ausgeschlossen).
 
 ## Tests
 
@@ -95,14 +95,14 @@ Die Tests prüfen die **Rechenrichtigkeit**: Engine-Ergebnisse auf der Beispielk
 
 ## Teststand
 
-12.10.2026 · Windows 11 x64 (Build 26200) · R 4.5.3 (2026-03-11 ucrt) · Quarto-CLI 1.9.38 · Chrome 155
+12.10.2026; Windows 11 x64 (Build 26200), R 4.5.3 (2026-03-11 ucrt), Quarto-CLI 1.9.38, Chrome 155
 
 `Rscript tests/run_all.R` meldet:
 
 - **Tier-1 gehalten:** Historie −5.235.600, Tiefpunkt −5.135.990 in M3, Planergebnis 2.672.411, jeweils gleich dem eingefrorenen Referenzwert; GuV-Konsistenz und Massenerhaltung OK.
 - **testthat:** 85 Testdateien, davon 7 ohne `test_that`; 413 Tests, davon 412 bestanden, 1 übersprungen, 0 fehlgeschlagen (2.441 erfüllte Erwartungen, 0 Warnungen). Die Browser-Tests (shinytest2) liefen mit Chrome.
 - **Übersprungen** (testthat listet acht Einträge):
-  - 7 × „empty test": Die Dateien `tests/test_*_gc_seam.R` enthalten absichtlich kein `test_that`; sie geben zwischen speicherintensiven Testblöcken Arbeitsspeicher frei (`gc()`).
+  - 7 × „empty test“: Die Dateien `tests/test_*_gc_seam.R` enthalten absichtlich kein `test_that`; sie geben zwischen speicherintensiven Testblöcken Arbeitsspeicher frei (`gc()`).
   - 1 × Browser-Test des Maßnahmen-Schirms (`tests/test_massnahmen_ui.R`): absichtlicher Skip mit Begründung im Test. Reiterklick, Auslesen der Vorschau im Browser und Hintergrundlauf sind nicht als Browser-Test umgesetzt; Bindung und Rechenvorschrift der Vorschau prüfen die übrigen Tests der Datei ohne Browser.
 
 Laufzeit einschließlich `tests/deps.R` knapp drei Minuten.
@@ -128,8 +128,8 @@ Begriffe in den Code-Kommentaren:
 |---|---|
 | Builder | Sprachmodell-Agent, der eine Phase umsetzt: in Runde T die Spezifikationstests, in Runde I die Implementierung |
 | Reviewer | ein Modell eines anderen Anbieters prüft den Diff jeder Phase gegen `IMPLEMENTATION_RULES.md`; jeder Befund mit Schweregrad und Fundstelle |
-| Red-Team | ein weiteres Modell sucht gezielt Stellen, an denen ein Kandidat nur grün aussieht: hartcodierte Anker, Tests, die nicht fehlschlagen können, umgangene Gates, Eingriffe in den Kernel; jeder belegte Befund und jedes „UNVERIFIED" blockiert |
-| Mutationstest-Gate „Mutgate" | nach dem Implementierungs-Commit werden fünf gezielte Fehler (Mutanten) in den neuen Code eingebaut; erkennt die Suite weniger als vier, ist das Gate rot; überlebende Mutanten führen zu nachgeschobenen Tests (`tests/*_mutgate*.R`) |
+| Red-Team | ein weiteres Modell sucht gezielt Stellen, an denen ein Kandidat nur grün aussieht: hartcodierte Anker, Tests, die nicht fehlschlagen können, umgangene Gates, Eingriffe in den Kernel; jeder belegte Befund und jedes „UNVERIFIED“ blockiert |
+| Mutationstest-Gate „Mutgate“ | nach dem Implementierungs-Commit werden fünf gezielte Fehler (Mutanten) in den neuen Code eingebaut; erkennt die Suite weniger als vier, ist das Gate rot; überlebende Mutanten führen zu nachgeschobenen Tests (`tests/*_mutgate*.R`) |
 | Rot-zuerst | Spezifikationstests werden vor der Implementierung festgeschrieben und müssen gegen den alten Stand fehlschlagen; danach bleiben sie unverändert |
 | Tier-1-Anker | die drei Kopfzahlen der Beispielklinik (Historie −5.235.600 EUR, Tiefpunkt −5.135.990 EUR in M3, Planergebnis 2.672.411 EUR), eingefroren in `tests/tier1_baseline.R`; keine Phase durfte sie verändern |
 | Phasenvertrag | die Datei `handoff/phase-*.json` einer Arbeitseinheit, vor dem Bau vom Planner-Agenten erstellt; Tests und Kommentare zitieren daraus |
